@@ -6,6 +6,10 @@ type Subject struct {
 }
 
 type SubjectsStore interface {
-	add(s Subject)
-	
+	NextIdentity() int
+	Add(s Subject) error
+	Get(id int) (Subject, error)
+	Remove(id int) error
+	AddTag(id int, tag string) error
+	GetByTag(tag string) []Subject
 }
