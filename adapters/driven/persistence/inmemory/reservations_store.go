@@ -9,6 +9,7 @@ import (
 
 type ReservationsStore struct
 {
+	counter int
 	reservations reservations.Reservations
 }
 
@@ -17,7 +18,9 @@ func NewReservationStore() *ReservationsStore {
 }
 
 func (r *ReservationsStore) NextIdentity() int {
-	return 1
+	r.counter++
+
+	return r.counter
 }
 
 func (r *ReservationsStore) ReservedAt(t time.Time) reservations.Reservations {

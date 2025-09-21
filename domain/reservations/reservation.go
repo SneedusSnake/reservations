@@ -2,6 +2,7 @@ package reservations
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 )
@@ -19,6 +20,18 @@ func (r Reservation) ActiveAt(t time.Time) bool {
 }
 
 type Reservations []Reservation
+
+func (r Reservations) ForSubject(subjectId int) Reservations {
+	var filtered Reservations
+
+	for _, reservation := range r {
+		if reservation.SubjectId == subjectId {
+			filtered = append(filtered, reservation)
+		}
+	}
+
+	return filtered
+}
 
 type ReservationsRegistry interface {
 	NextIdentity() int
@@ -122,4 +135,39 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 			t.Errorf("Expected %d active reservations, got %d", len(currentReservations), len(reservations))
 		}
 	})
+
+	t.Run("it generates next ID", func(t *testing.T) {
+		registry := r.NewRegistry()
+		ch := make(chan int, 5)
+		var ids []int
+
+		for i := 0; i < 5; i++ {
+			go (func (c chan int) {
+				c <- registry.NextIdentity()
+			})(ch)
+		}
+		
+		for i := 0; i < 5; i++ {
+			ids = append(ids, <- ch)
+		}
+
+		if !slices.IsSorted(ids) {
+			t.Errorf("Generated identities %v are not in ascending order", ids)
+		}
+
+		if len(unique(ids)) != len(ids) {
+			t.Errorf("Generated identities %v contain duplicate values", ids)
+		}
+	})
+}
+
+func unique[T comparable](s []T) []T {
+	result := make([]T, 0)
+	for _, elem := range s {
+	  if !slices.Contains(result, elem) {
+		  result = append(result, elem)
+	  }
+	}
+
+	return result
 }
