@@ -6,10 +6,11 @@ import (
 )
 
 type SubjectsViewer interface{
-	List() []string
+	List() ([]string, error)
 }
 
 func ListSpecification(t testing.TB, viewer SubjectsViewer) {
-	subjects := viewer.List()
+	subjects, err := viewer.List()
+	assert.Equal(t, err, nil)
 	assert.Equal(t, subjects, []string{"Test Subject #1", "Test Subject #2", "Test Subject #3"})
 }
