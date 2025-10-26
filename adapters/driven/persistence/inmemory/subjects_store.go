@@ -5,15 +5,17 @@ import (
 	"fmt"
 
 	"github.com/SneedusSnake/Reservations/domain/reservations"
+	"github.com/SneedusSnake/Reservations/utils"
 )
 
 type SubjectsStore struct {
 	counter int
 	subjects []reservations.Subject
+	tags map[string][]int
 }
 
 func NewSubjectsStore() *SubjectsStore {
-	return &SubjectsStore{}
+	return &SubjectsStore{counter: 0, subjects: []reservations.Subject{}, tags: make(map[string][]int)}
 }
 
 func (s *SubjectsStore) NextIdentity() int {
@@ -46,9 +48,23 @@ func (s *SubjectsStore) Remove(id int) error {
 }
 
 func (s *SubjectsStore) AddTag(id int, tag string) error {
+	subject, _ := s.Get(id)
+	s.tags[tag] = append(s.tags[tag], subject.Id)
 	return nil;
 }
 
-func (s *SubjectsStore) GetByTag(tag string) []reservations.Subject {
-	return nil;
+func (s *SubjectsStore) GetByTags(tags []string) []reservations.Subject {
+	subjects := make([]reservations.Subject, 0)
+	subjectIds := s.tags[tags[0]]
+
+	for _, tag := range tags[1:] {
+		subjectIds = utils.Intersect(subjectIds, s.tags[tag])
+	}
+
+	for _, id := range subjectIds {
+		subject, _ := s.Get(id)
+		subjects = append(subjects, subject)
+	}
+
+	return subjects
 }

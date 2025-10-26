@@ -11,5 +11,5 @@ type SubjectsStore interface {
 	Get(id int) (Subject, error)
 	Remove(id int) error
 	AddTag(id int, tag string) error
-	GetByTag(tag string) []Subject
+	GetByTags(tags []string) []Subject
 }

@@ -12,3 +12,15 @@ func Unique[T comparable](s []T) []T {
 
 	return result
 }
+
+func Intersect[T comparable](a []T, b []T) []T {
+	result := make([]T, 0);
+
+	for _, elem := range a {
+		if slices.Contains(b, elem) {
+			result = append(result, elem)
+		}
+	}
+
+	return result
+}
