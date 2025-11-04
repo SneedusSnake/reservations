@@ -1,17 +1,14 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/SneedusSnake/Reservations/testing/specifications"
+	"github.com/SneedusSnake/Reservations/testing/drivers/telegram"
 	"github.com/alecthomas/assert/v2"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
@@ -26,71 +23,64 @@ func (lc *StdoutLogConsumer) Accept(l testcontainers.Log) {
 	fmt.Printf("%s: %s\n", lc.Container, string(l.Content))
 }
 
-type TelegramDriver struct{
-	client http.Client
-	host string
-	t *testing.T
+type TestApplication struct {
+	TelegramApi testcontainers.Container
+	App testcontainers.Container
+	Network *testcontainers.DockerNetwork
+	Ctx context.Context
 }
 
-func (d TelegramDriver) UserRequestsSubjectsList() {
-	clientMessage := `{
-		"chat": {"id": 1234},
-		"text": "/list"
-	}`
-	_, err := d.client.Post(fmt.Sprintf("%s/sendClientMessage", d.host), "application/json", bytes.NewBuffer([]byte(clientMessage)))
-	assert.NoError(d.t, err)
-}
-
-func (d TelegramDriver) UserSeesSubjects(subject ...string) {
-	var responseData []struct{
-		Text string `json:"text"`
+func (app *TestApplication) TelegramApiHost() (string, error) {
+	host, err := app.TelegramApi.Endpoint(app.Ctx, "")
+	
+	if err != nil {
+		return "", err
 	}
 
-	for i := 0; i < 10 && len(responseData) == 0; i++ {
-		r, err := d.client.Get(fmt.Sprintf("%s/getBotMessages", d.host))
-		assert.NoError(d.t, err)
-
-		body, err := io.ReadAll(r.Body)
-		assert.NoError(d.t, err)
-		err = json.Unmarshal(body, &responseData)
-		assert.NoError(d.t, err)
-	}
-
-	assert.NotEqual(d.t, 0, len(responseData))
-
-	subjects := strings.Split(responseData[len(responseData)-1].Text, "\n")
-	assert.Equal(d.t, subject, subjects)
+	return "http://" + host, nil
 }
 
 func TestList(t *testing.T) {
+	testApp := bootApplication(t)
+	telegramApiHost, err := testApp.TelegramApiHost()
+	assert.NoError(t, err)
+
+	driver := telegram.NewDriver(
+		http.DefaultClient,
+		telegramApiHost,
+		t,
+	)
+
+	specifications.ListSpecification(t, driver)
+}
+
+func bootApplication(t *testing.T) *TestApplication {
 	ctx := context.Background()
 	net, err := network.New(ctx)
 	assert.NoError(t, err)
-	apiContainer, err := bootTelegramApiContainer(ctx, net)
+
+	testApp := &TestApplication{Ctx: ctx, Network: net}
+	apiContainer, err := bootTelegramApiContainer(testApp)
 	testcontainers.CleanupContainer(t, apiContainer)
 	assert.NoError(t, err)
-	appContainer, err := bootAppContainer(ctx, net)
+	appContainer, err := bootAppContainer(testApp)
 	testcontainers.CleanupContainer(t, appContainer)
 	assert.NoError(t, err)
-	apiHost, err := apiContainer.Endpoint(ctx, "")
-	assert.NoError(t, err)
-
-	specifications.ListSpecification(t, TelegramDriver{
-		client: *http.DefaultClient,
-		t: t,
-		host: "http://" + apiHost,
-	})
+	testApp.TelegramApi = apiContainer
+	testApp.App = appContainer
+	
+	return testApp
 }
 
-func bootTelegramApiContainer(ctx context.Context, network *testcontainers.DockerNetwork) (testcontainers.Container, error) {
+func bootTelegramApiContainer(app *TestApplication) (testcontainers.Container, error) {
 	req := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context: "./server/telegram",
 			Dockerfile: "Dockerfile",
 			PrintBuildLog: true,
 		},
-		Networks: []string{network.Name},
-		NetworkAliases: map[string][]string{network.Name: []string{"telegram-api"}},
+		Networks: []string{app.Network.Name},
+		NetworkAliases: map[string][]string{app.Network.Name: []string{"telegram-api"}},
 		ExposedPorts: []string{"8080"},
 		WaitingFor: wait.ForHTTP("/").WithPort("8080"),
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
@@ -98,13 +88,13 @@ func bootTelegramApiContainer(ctx context.Context, network *testcontainers.Docke
 			Consumers: []testcontainers.LogConsumer{&StdoutLogConsumer{Container: "Telegram test server"}},
 		},
 	}
-	 return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	 return testcontainers.GenericContainer(app.Ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started: true,
 	})
 }
 
-func bootAppContainer(ctx context.Context, network *testcontainers.DockerNetwork) (testcontainers.Container, error) {
+func bootAppContainer(app *TestApplication) (testcontainers.Container, error) {
 	req := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context: "../..",
@@ -112,15 +102,14 @@ func bootAppContainer(ctx context.Context, network *testcontainers.DockerNetwork
 			PrintBuildLog: true,
 		},
 		Env: map[string]string{"TELEGRAM_API_HOST": "http://telegram-api:8080"},
-		Networks: []string{network.Name},
+		Networks: []string{app.Network.Name},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts: []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10*time.Second)},
 			Consumers: []testcontainers.LogConsumer{&StdoutLogConsumer{Container: "Application"}},
 		},
 	}
-	 return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	 return testcontainers.GenericContainer(app.Ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
 		Started: true,
 	})
 }
-

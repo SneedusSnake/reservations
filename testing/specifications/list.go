@@ -2,14 +2,10 @@ package specifications
 
 import (
 	"testing"
+	"github.com/SneedusSnake/Reservations/testing/drivers"
 )
 
-type ReservationsDriver interface{
-	UserRequestsSubjectsList()
-	UserSeesSubjects(subject ...string)
-}
-
-func ListSpecification(t testing.TB, driver ReservationsDriver) {
+func ListSpecification(t testing.TB, driver drivers.Reservations) {
 	driver.UserRequestsSubjectsList()
 
 	driver.UserSeesSubjects("Subject #1", "Subject #2", "Subject #3")
