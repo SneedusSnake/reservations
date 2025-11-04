@@ -2,15 +2,15 @@ package specifications
 
 import (
 	"testing"
-	"github.com/alecthomas/assert/v2"
 )
 
-type SubjectsViewer interface{
-	List() ([]string, error)
+type ReservationsDriver interface{
+	UserRequestsSubjectsList()
+	UserSeesSubjects(subject ...string)
 }
 
-func ListSpecification(t testing.TB, viewer SubjectsViewer) {
-	subjects, err := viewer.List()
-	assert.Equal(t, err, nil)
-	assert.Equal(t, subjects, []string{"Test Subject #1", "Test Subject #2", "Test Subject #3"})
+func ListSpecification(t testing.TB, driver ReservationsDriver) {
+	driver.UserRequestsSubjectsList()
+
+	driver.UserSeesSubjects("Subject #1", "Subject #2", "Subject #3")
 }
