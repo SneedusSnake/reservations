@@ -20,7 +20,7 @@ type User struct {
 	Username string `json:"username"`
 }
 
-type Message struct {
+type UpdateMessage struct {
 	Id int `json:"message_id"`
 	Text string `json:"text"`
 	From User `json:"from"`
@@ -29,10 +29,10 @@ type Message struct {
 
 type Update struct {
 	Id int `json:"update_id"`
-	Message Message `json:"message"`
+	Message UpdateMessage `json:"message"`
 }
 
-type BotMessage struct {
+type Message struct {
 	ChatId int `json:"chat_id"`
 	Text string `json:"text"`
 }
@@ -47,8 +47,7 @@ func sendBotMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := io.ReadAll(r.Body)
-	log.Print("Recieved message from bot: " + string(body))
-	var message BotMessage
+	var message Message
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -60,7 +59,6 @@ func sendBotMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	botMessages = append(botMessages, message)
-	log.Printf("Parsed message: %v, \n Total messages: %v\n", message, botMessages)
 	fmt.Fprint(w, "OK")
 }
 
@@ -70,7 +68,7 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := io.ReadAll(r.Body)
-	var message Message
+	var message UpdateMessage
 	message.Id = len(messages) + 1
 	if err != nil {
 		log.Print(err)
@@ -83,16 +81,14 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-
-	log.Print("writing client message", message)
 	messages = append(messages, message)
 	fmt.Fprint(w, "OK")
 }
 
 func getUpdates(w http.ResponseWriter, r *http.Request) {
 	var updates []Update
-	for i := 0; i < len(messages); i++ {
-		updates = append(updates, Update{Id: i, Message: messages[i]})
+	for i := lastReadId; i < len(messages); i++ {
+		updates = append(updates, Update{Id: i+1, Message: messages[i]})
 	}
 
 	data, err := json.Marshal(updates)
@@ -102,8 +98,8 @@ func getUpdates(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	log.Printf("updates requested, returning %v", updates)
 	fmt.Fprint(w, string(data))
+	lastReadId = updates[len(updates) - 1].Id
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {
@@ -113,22 +109,21 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	fmt.Printf("bot messages requested, returning %v", botMessages)
-
 	fmt.Fprint(w, string(data))
 }
 
-var botMessages []BotMessage
-var messages []Message
+var botMessages []Message
+var messages []UpdateMessage
+var lastReadId int
 
 
 func main () {
 	handler := http.NewServeMux()
 	handler.Handle("/", http.HandlerFunc(index))
 	handler.Handle("/sendMessage", http.HandlerFunc(sendBotMessage))
-	handler.Handle("/sendClientMessage", http.HandlerFunc(sendMessage))
-	handler.Handle("/getBotMessages", http.HandlerFunc(getMessages))
 	handler.Handle("/getUpdates", http.HandlerFunc(getUpdates))
+	handler.Handle("/testing/sendClientMessage", http.HandlerFunc(sendMessage))
+	handler.Handle("/testing/getBotMessages", http.HandlerFunc(getMessages))
 
 	s := &http.Server{
 		Addr:           ":8080",

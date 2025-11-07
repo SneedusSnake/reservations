@@ -31,17 +31,18 @@ func (d *TelegramDriver) UserRequestsSubjectsList() {
 		"chat": {"id": 1234},
 		"text": "/list"
 	}`
-	_, err := d.client.Post(fmt.Sprintf("%s/sendClientMessage", d.host), "application/json", bytes.NewBuffer([]byte(clientMessage)))
+	_, err := d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer([]byte(clientMessage)))
 	assert.NoError(d.t, err)
 }
 
 func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
 	var responseData []struct{
+		ChatId int `json:"chat_id"`
 		Text string `json:"text"`
 	}
 
 	for i := 0; i < 10 && len(responseData) == 0; i++ {
-		r, err := d.client.Get(fmt.Sprintf("%s/getBotMessages", d.host))
+		r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
 		assert.NoError(d.t, err)
 
 		body, err := io.ReadAll(r.Body)
@@ -51,7 +52,9 @@ func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
 	}
 
 	assert.NotEqual(d.t, 0, len(responseData))
+	botMessage := responseData[len(responseData) - 1]
 
-	subjects := strings.Split(responseData[len(responseData)-1].Text, "\n")
+	subjects := strings.Split(botMessage.Text, "\n")
 	assert.Equal(d.t, subject, subjects)
+	assert.Equal(d.t, 1234, botMessage.ChatId)
 }
