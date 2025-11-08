@@ -99,7 +99,11 @@ func getUpdates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, string(data))
-	lastReadId = updates[len(updates) - 1].Id
+
+	updatesCount := len(updates)
+	if updatesCount > 0 {
+		lastReadId = updates[len(updates) - 1].Id
+	}
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {

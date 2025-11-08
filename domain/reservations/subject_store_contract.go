@@ -70,6 +70,20 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 		}
 	})
 
+	t.Run("it returns list of all subjects", func(t *testing.T) {
+		store.Add(Subject{1, "Subject 1"})
+		store.Add(Subject{2, "Subject 2"})
+		store.Add(Subject{3, "Subject 3"})
+
+		subjects := store.List()
+
+		if len(subjects) != 3 {
+			t.Errorf("Expected 3 subjects, got %d", len(subjects))
+		}
+
+		cleanUp(subjects...)
+	})
+
 	t.Run("it can add tags and filter by them", func(t *testing.T) {
 		subjects := []Subject{
 			{1, "Conference room #1"},

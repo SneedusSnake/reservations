@@ -51,6 +51,11 @@ func TestList(t *testing.T) {
 		t,
 	)
 
+	driver.AdminAddsSubject("Subject #1")
+	driver.AdminAddsSubject("Subject #2")
+	driver.AdminAddsSubject("Subject #3")
+	time.Sleep(time.Millisecond*500)
+
 	specifications.ListSpecification(t, driver)
 }
 

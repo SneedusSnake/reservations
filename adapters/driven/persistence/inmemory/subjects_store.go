@@ -37,6 +37,10 @@ func (s *SubjectsStore) Get(id int) (reservations.Subject, error) {
 	return reservations.Subject{}, errors.New(fmt.Sprintf("Subject with id %d not found", id))
 }
 
+func (s *SubjectsStore) List() []reservations.Subject {
+	return s.subjects
+}
+
 func (s *SubjectsStore) Remove(id int) error {
 	for index, subject := range s.subjects {
 		if subject.Id == id {

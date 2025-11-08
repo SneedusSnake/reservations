@@ -6,9 +6,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/SneedusSnake/Reservations/adapters/driven/persistence/inmemory"
 	"github.com/SneedusSnake/Reservations/domain/reservations"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -35,6 +37,7 @@ type Update struct {
 }
 
 var cfg Config;
+var subjectsStore reservations.SubjectsStore
 
 func main() {
 	log.Print("Starting main")
@@ -43,6 +46,7 @@ func main() {
 		log.Print(err)
 		panic(err)
 	}
+	subjectsStore = inmemory.NewSubjectsStore()
 
 
 	for {
@@ -51,8 +55,8 @@ func main() {
 			log.Print(err)
 		}
 
-		if len(updates) != 0 {
-			handleUpdate(updates[0])
+		for _, update := range updates {
+			go handleUpdate(update)
 		}
 
 		time.Sleep(time.Microsecond*500)
@@ -82,12 +86,7 @@ func updates() ([]Update, error) {
 }
 
 func subjects() string {
-	subjects := []reservations.Subject{
-		{Id: 1, Name: "Subject #1"},
-		{Id: 2, Name: "Subject #2"},
-		{Id: 2, Name: "Subject #3"},
-	}
-
+	subjects := subjectsStore.List()
 	subjectNames := []string{}
 	for _, subject := range subjects {
 		subjectNames = append(subjectNames, subject.Name)
@@ -96,7 +95,9 @@ func subjects() string {
 }
 
 func handleUpdate(u Update) error {
+	log.Println("handling update", u)
 	if u.Message.Text == "/list" {
+		log.Println("Handling list command")
 		msg := Message{ChatId: u.Message.Chat.Id, Text: subjects()}
 		data, err := json.Marshal(msg)
 
@@ -109,6 +110,11 @@ func handleUpdate(u Update) error {
 		if r.StatusCode != 200 {
 			log.Print(err)
 		}
+	} else if match, _ := regexp.MatchString("^/add_subject", u.Message.Text); match {
+		log.Println("Handling add subject command")
+		name := strings.SplitN(u.Message.Text, " ", 2)[1]
+		subject := reservations.Subject{Id: subjectsStore.NextIdentity(), Name: name}
+		subjectsStore.Add(subject)
 	}
 
 	return nil
