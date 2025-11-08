@@ -6,6 +6,7 @@ toolchain go1.24.9
 
 require (
 	github.com/alecthomas/assert/v2 v2.11.0
+	github.com/go-telegram/bot v1.17.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/testcontainers/testcontainers-go v0.39.0
 )

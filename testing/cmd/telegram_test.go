@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/testing/specifications"
 	"github.com/SneedusSnake/Reservations/testing/drivers/telegram"
+	"github.com/SneedusSnake/Reservations/testing/specifications"
 	"github.com/alecthomas/assert/v2"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
@@ -24,6 +24,7 @@ func (lc *StdoutLogConsumer) Accept(l testcontainers.Log) {
 }
 
 type TestApplication struct {
+	BotToken string
 	TelegramApi testcontainers.Container
 	App testcontainers.Container
 	Network *testcontainers.DockerNetwork
@@ -84,6 +85,7 @@ func bootTelegramApiContainer(app *TestApplication) (testcontainers.Container, e
 			Dockerfile: "Dockerfile",
 			PrintBuildLog: true,
 		},
+		Env: map[string]string{"BOT_TOKEN": "1234567"},
 		Networks: []string{app.Network.Name},
 		NetworkAliases: map[string][]string{app.Network.Name: []string{"telegram-api"}},
 		ExposedPorts: []string{"8080"},
@@ -106,7 +108,7 @@ func bootAppContainer(app *TestApplication) (testcontainers.Container, error) {
 			Dockerfile: "./build/Docker/Dockerfile",
 			PrintBuildLog: true,
 		},
-		Env: map[string]string{"TELEGRAM_API_HOST": "http://telegram-api:8080"},
+		Env: map[string]string{"TELEGRAM_API_HOST": "http://telegram-api:8080", "TELEGRAM_API_TOKEN": "1234567"},
 		Networks: []string{app.Network.Name},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts: []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10*time.Second)},

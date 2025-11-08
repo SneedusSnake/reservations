@@ -6,6 +6,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"runtime/debug"
+	"strconv"
 	"time"
 )
 
@@ -37,8 +40,13 @@ type Message struct {
 	Text string `json:"text"`
 }
 
-func index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, "OK")
+type getUpdatesResponse struct {
+	OK     bool             `json:"ok"`
+	Result []Update `json:"result"`
+}
+
+func getMe(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, `{"ok":true,"result":{}}`)
 }
 
 func sendBotMessage(w http.ResponseWriter, r *http.Request) {
@@ -46,18 +54,25 @@ func sendBotMessage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 
-	body, err := io.ReadAll(r.Body)
 	var message Message
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-	err = json.Unmarshal(body, &message)
 
-	if err != nil {
-		log.Print(err)
-		w.WriteHeader(http.StatusBadRequest)
+	if r.Header.Get("Content-Type") != "application/json" {
+		chatId, _ := strconv.Atoi(r.FormValue("chat_id"))
+		message.ChatId = chatId
+		message.Text = r.FormValue("text")
+	} else {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		err = json.Unmarshal(body, &message)
+		if err != nil {
+			log.Print(err, string(debug.Stack()))
+			w.WriteHeader(http.StatusBadRequest)
+		}
 	}
 
+	log.Print("recieved bot message: ", message)
 	botMessages = append(botMessages, message)
 	fmt.Fprint(w, "OK")
 }
@@ -68,16 +83,19 @@ func sendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := io.ReadAll(r.Body)
-	var message UpdateMessage
-	message.Id = len(messages) + 1
 	if err != nil {
-		log.Print(err)
+		log.Print(err, string(debug.Stack()))
 		w.WriteHeader(http.StatusBadRequest)
 	}
+
+	log.Print("Recieved client message", string(body))
+	var message UpdateMessage
+	message.Id = len(messages) + 1
+
 	err = json.Unmarshal(body, &message)
 
 	if err != nil {
-		log.Print(err)
+		log.Print(err, string(debug.Stack()))
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
@@ -91,10 +109,12 @@ func getUpdates(w http.ResponseWriter, r *http.Request) {
 		updates = append(updates, Update{Id: i+1, Message: messages[i]})
 	}
 
-	data, err := json.Marshal(updates)
+	log.Print("Returning updates:", updates)
+	data, err := json.Marshal(getUpdatesResponse{OK: true, Result: updates})
+	log.Print("Returning encoded updates:", string(data))
 	
 	if err != nil {
-		log.Print(err)
+		log.Print(err, string(debug.Stack()))
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -119,13 +139,15 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 var botMessages []Message
 var messages []UpdateMessage
 var lastReadId int
-
+var token string
 
 func main () {
+	token = os.Getenv("BOT_TOKEN")
 	handler := http.NewServeMux()
-	handler.Handle("/", http.HandlerFunc(index))
-	handler.Handle("/sendMessage", http.HandlerFunc(sendBotMessage))
-	handler.Handle("/getUpdates", http.HandlerFunc(getUpdates))
+	handler.Handle("/", http.HandlerFunc(getMe))
+	handler.Handle(url("/getMe"), http.HandlerFunc(getMe))
+	handler.Handle(url("/sendMessage"), http.HandlerFunc(sendBotMessage))
+	handler.Handle(url("/getUpdates"), http.HandlerFunc(getUpdates))
 	handler.Handle("/testing/sendClientMessage", http.HandlerFunc(sendMessage))
 	handler.Handle("/testing/getBotMessages", http.HandlerFunc(getMessages))
 
@@ -136,4 +158,8 @@ func main () {
 		WriteTimeout:   10 * time.Second,
 	}
 	log.Fatal(s.ListenAndServe())
+}
+
+func url(url string) string {
+	return fmt.Sprintf("/bot%s%s", token, url)
 }

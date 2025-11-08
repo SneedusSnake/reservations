@@ -1,23 +1,23 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
+	"context"
 	"log"
-	"net/http"
-	"regexp"
+	"os"
+	"os/signal"
 	"strings"
-	"time"
 
 	"github.com/SneedusSnake/Reservations/adapters/driven/persistence/inmemory"
 	"github.com/SneedusSnake/Reservations/domain/reservations"
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 	"github.com/kelseyhightower/envconfig"
 )
 
 type Config struct {
 	TelegramApi struct{
 		Host string `envconfig:"TELEGRAM_API_HOST"`
+		Token string `envconfig:"TELEGRAM_API_TOKEN"`
 	}
 }
 
@@ -41,6 +41,8 @@ var subjectsStore reservations.SubjectsStore
 
 func main() {
 	log.Print("Starting main")
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 	err := envconfig.Process("", &cfg)
 	if err != nil {
 		log.Print(err)
@@ -48,41 +50,19 @@ func main() {
 	}
 	subjectsStore = inmemory.NewSubjectsStore()
 
-
-	for {
-		updates, err := updates()
-		if err != nil {
-			log.Print(err)
-		}
-
-		for _, update := range updates {
-			go handleUpdate(update)
-		}
-
-		time.Sleep(time.Microsecond*500)
+	opts := []bot.Option{
+		bot.WithServerURL(cfg.TelegramApi.Host),
 	}
-}
-
-func updates() ([]Update, error) {
-	var updates []Update
-	r, err := http.Get(fmt.Sprintf("%s/getUpdates", cfg.TelegramApi.Host))
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	log.Print("recieved updates:", string(body))
-
-	err = json.Unmarshal(body, &updates)
+	b, err := bot.New(cfg.TelegramApi.Token, opts...)
 
 	if err != nil {
-		return nil, err
+		log.Print(err)
+		panic(err)
 	}
 
-	return updates, nil
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_subject", bot.MatchTypePrefix, addSubjectHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, listSubjectsHandler)
+	b.Start(ctx)
 }
 
 func subjects() string {
@@ -94,28 +74,17 @@ func subjects() string {
 	return strings.Join(subjectNames, "\n")
 }
 
-func handleUpdate(u Update) error {
-	log.Println("handling update", u)
-	if u.Message.Text == "/list" {
-		log.Println("Handling list command")
-		msg := Message{ChatId: u.Message.Chat.Id, Text: subjects()}
-		data, err := json.Marshal(msg)
+func addSubjectHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	log.Println("Handling add subject command")
+	name := strings.SplitN(update.Message.Text, " ", 2)[1]
+	subject := reservations.Subject{Id: subjectsStore.NextIdentity(), Name: name}
+	subjectsStore.Add(subject)
+}
 
-		r, err := http.Post(fmt.Sprintf("%s/sendMessage", cfg.TelegramApi.Host), "application/json", strings.NewReader(string(data)))
-
-		if err != nil {
-			log.Print(err)
-			panic(err)
-		}
-		if r.StatusCode != 200 {
-			log.Print(err)
-		}
-	} else if match, _ := regexp.MatchString("^/add_subject", u.Message.Text); match {
-		log.Println("Handling add subject command")
-		name := strings.SplitN(u.Message.Text, " ", 2)[1]
-		subject := reservations.Subject{Id: subjectsStore.NextIdentity(), Name: name}
-		subjectsStore.Add(subject)
-	}
-
-	return nil
+func listSubjectsHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	log.Println("Handling list command")
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   subjects(),
+	})
 }
