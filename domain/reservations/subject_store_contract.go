@@ -127,17 +127,40 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 			}
 	})
 
+	t.Run("it returns all tags of a subject", func(t *testing.T) {
+		subject := Subject{1, "Test"}
+		err := store.Add(subject)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedTags := []string{"tag 1", "tag 2", "tag 3"}
+		for _, tag := range expectedTags {
+			store.AddTag(subject.Id, tag)
+		}
+
+		tags, err := store.GetTags(1)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !slices.Equal(expectedTags, tags) {
+			t.Errorf("expected to recieve %v, got %v", expectedTags, tags)
+		}
+
+		cleanUp(subject)
+	})
+
 	t.Run("it generates next ID", func(t *testing.T) {
 		ch := make(chan int, 5)
 		var ids []int
 
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			go (func (c chan int) {
 				c <- store.NextIdentity()
 			})(ch)
 		}
 		
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			ids = append(ids, <- ch)
 		}
 

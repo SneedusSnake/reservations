@@ -15,7 +15,10 @@ import (
 type Message struct {
 	Id int `json:"message_id"`
 	Text string `json:"text"`
-	ChatId int `json:"chat.id"`
+	Chat Chat `json:"chat"`
+}
+type Chat struct {
+	Id int `json:"id"`
 }
 
 type TelegramDriver struct {
@@ -39,8 +42,7 @@ func (d *TelegramDriver) AdminAddsSubject(subject string) {
 	clientMessage := Message{
 		Id: d.messageId,
 		Text: "/add_subject " + subject,
-		ChatId: 1234,
-		
+		Chat: Chat{Id: 1234},
 	}
 	encoded, err := json.Marshal(clientMessage)	
 	assert.NoError(d.t, err)
@@ -48,12 +50,43 @@ func (d *TelegramDriver) AdminAddsSubject(subject string) {
 	assert.NoError(d.t, err)
 }
 
+func (d *TelegramDriver) AdminAddsTagsToSubject(subject string, tags ...string) {
+	d.messageId++
+	clientMessage := Message{
+		Id: d.messageId,
+		Text: fmt.Sprintf("/add_tags %s %s", subject, strings.Join(tags, " ")),
+		Chat: Chat{Id: 1234},
+	}
+
+	encoded, err := json.Marshal(clientMessage)	
+	assert.NoError(d.t, err)
+	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
+	assert.NoError(d.t, err)
+}
+
 func (d *TelegramDriver) UserRequestsSubjectsList() {
-	clientMessage := `{
-		"chat": {"id": 1234},
-		"text": "/list"
-	}`
-	_, err := d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer([]byte(clientMessage)))
+	d.messageId++
+	clientMessage := Message{
+		Id: d.messageId,
+		Text: "/list",
+		Chat: Chat{Id: 1234},
+	}
+	encoded, err := json.Marshal(clientMessage)	
+	assert.NoError(d.t, err)
+	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
+	assert.NoError(d.t, err)
+}
+
+func (d *TelegramDriver) UserRequestsSubjectTags(subject string) {
+	d.messageId++
+	clientMessage := Message{
+		Id: d.messageId,
+		Text: "/tags " + subject,
+		Chat: Chat{Id: 1234},
+	}
+	encoded, err := json.Marshal(clientMessage)	
+	assert.NoError(d.t, err)
+	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
 	assert.NoError(d.t, err)
 }
 
@@ -79,6 +112,32 @@ func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
 	subjects := strings.Split(botMessage.Text, "\n")
 	for _, s := range subject {
 		assert.SliceContains(d.t, subjects, s)
+	}
+	assert.Equal(d.t, 1234, botMessage.ChatId)
+}
+
+func (d *TelegramDriver) UserSeesSubjectTags(tags ...string) {
+	var responseData []struct{
+		ChatId int `json:"chat_id"`
+		Text string `json:"text"`
+	}
+
+	for range 5 {
+		r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
+		assert.NoError(d.t, err)
+
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(d.t, err)
+		err = json.Unmarshal(body, &responseData)
+		assert.NoError(d.t, err)
+	}
+
+	assert.NotEqual(d.t, 0, len(responseData))
+	botMessage := responseData[len(responseData) - 1]
+
+	recievedTags := strings.Split(botMessage.Text, "\n")
+	for _, tag := range tags {
+		assert.SliceContains(d.t, recievedTags, tag)
 	}
 	assert.Equal(d.t, 1234, botMessage.ChatId)
 }

@@ -109,9 +109,7 @@ func getUpdates(w http.ResponseWriter, r *http.Request) {
 		updates = append(updates, Update{Id: i+1, Message: messages[i]})
 	}
 
-	log.Print("Returning updates:", updates)
 	data, err := json.Marshal(getUpdatesResponse{OK: true, Result: updates})
-	log.Print("Returning encoded updates:", string(data))
 	
 	if err != nil {
 		log.Print(err, string(debug.Stack()))

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SneedusSnake/Reservations/testing/drivers"
 	"github.com/SneedusSnake/Reservations/testing/drivers/telegram"
 	"github.com/SneedusSnake/Reservations/testing/specifications"
 	"github.com/alecthomas/assert/v2"
@@ -41,7 +42,7 @@ func (app *TestApplication) TelegramApiHost() (string, error) {
 	return "http://" + host, nil
 }
 
-func TestList(t *testing.T) {
+func TestSuite(t *testing.T) {
 	testApp := bootApplication(t)
 	telegramApiHost, err := testApp.TelegramApiHost()
 	assert.NoError(t, err)
@@ -52,12 +53,15 @@ func TestList(t *testing.T) {
 		t,
 	)
 
-	driver.AdminAddsSubject("Subject #1")
-	driver.AdminAddsSubject("Subject #2")
-	driver.AdminAddsSubject("Subject #3")
-	time.Sleep(time.Millisecond*500)
+	prepareTestFixtures(driver)
 
-	specifications.ListSpecification(t, driver)
+	t.Run("User can see list of all existing subjects", func(t *testing.T) {
+		specifications.ListSpecification(t, driver)
+	})
+
+	t.Run("User can see list of all tags attached to a subject", func(t *testing.T) {
+		specifications.SubjectTagsSpecification(t, driver)
+	})
 }
 
 func bootApplication(t *testing.T) *TestApplication {
@@ -119,4 +123,14 @@ func bootAppContainer(app *TestApplication) (testcontainers.Container, error) {
 		ContainerRequest: req,
 		Started: true,
 	})
+}
+
+func prepareTestFixtures(driver drivers.Reservations) {
+	driver.AdminAddsSubject("Subject#1")
+	driver.AdminAddsSubject("Subject#2")
+	driver.AdminAddsSubject("Subject#3")
+	time.Sleep(time.Millisecond*100)
+	driver.AdminAddsTagsToSubject("Subject#1", "Subject#1", "This_is_a_first_subject", "test")
+	driver.AdminAddsTagsToSubject("Subject#2", "Subject#2", "This_is_a_second_subject", "test")
+	time.Sleep(time.Millisecond*500)
 }
