@@ -2,21 +2,37 @@ package telegram
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/SneedusSnake/Reservations/domain/reservations"
+	"github.com/SneedusSnake/Reservations/domain/users"
+	"github.com/SneedusSnake/Reservations/domain"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type telegramAdapter struct {
 	subjectsStore reservations.SubjectsStore
+	usersStore users.UsersStore
+	tgStore users.TelegramUsersStore
+	reservationsRegistry reservations.ReservationsRegistry
+	clock domain.Clock
 	log *log.Logger
 }
 
-func NewAdapter(subStore reservations.SubjectsStore, log *log.Logger) *telegramAdapter {
-	return &telegramAdapter{subjectsStore: subStore, log: log}
+func NewAdapter(subStore reservations.SubjectsStore, usersStore users.UsersStore, tgStore users.TelegramUsersStore, reservations reservations.ReservationsRegistry, clock domain.Clock, log *log.Logger) *telegramAdapter {
+	return &telegramAdapter{
+		subjectsStore: subStore,
+		usersStore: usersStore,
+		tgStore: tgStore,
+		reservationsRegistry: reservations,
+		clock: clock,
+		log: log,
+	}
 }
 
 func (ta *telegramAdapter) AddSubjectHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -62,5 +78,49 @@ func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bo
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
 		Text:   strings.Join(tags, "\n"),
+	})
+}
+
+func (ta *telegramAdapter) ReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	ta.log.Println("Handling reservation command")
+	args := strings.SplitN(update.Message.Text, " ", 3)
+	subject, err := ta.subjectsStore.List().Find(args[1])
+	if err != nil {
+		ta.log.Println(err)
+	}
+	minutes, err := strconv.Atoi(args[2])
+
+	if err != nil {
+		ta.log.Println(err)
+	}
+	tgUser, err := ta.tgStore.Get(update.Message.From.ID)
+
+	if err != nil {
+		tgUser = users.TelegramUser{
+			TelegramId: update.Message.From.ID,
+			User: users.User{
+				Id: ta.usersStore.NextIdentity(),
+				Name: update.Message.From.FirstName,
+			},
+		}
+		ta.usersStore.Add(tgUser.User)
+		ta.tgStore.Add(tgUser)
+	}
+
+	r := reservations.Reservation{
+		Id: ta.reservationsRegistry.NextIdentity(),
+		UserId: tgUser.Id,
+		SubjectId: subject.Id,
+		Start: ta.clock.Current(),
+		End: ta.clock.Current().Add(time.Duration(minutes)*time.Minute),
+	}
+	ta.reservationsRegistry.Add(r)
+	if err != nil {
+		ta.log.Println(err)
+	}
+
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: update.Message.Chat.ID,
+		Text:   fmt.Sprintf("Reservation for %s acquired by %s until %s", subject.Name, tgUser.Name, r.End.Format(time.DateTime)),
 	})
 }

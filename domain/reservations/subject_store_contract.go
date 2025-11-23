@@ -19,7 +19,7 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 		}
 	}
 
-	t.Run("it returns error when subject is not found", func(t *testing.T) {
+	t.Run("it returns error when subject was not found", func(t *testing.T) {
 		_, err := store.Get(1234)
 
 		if err == nil {

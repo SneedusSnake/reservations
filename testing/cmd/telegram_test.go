@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/SneedusSnake/Reservations/adapters/driven/clock/cache"
 	"github.com/SneedusSnake/Reservations/testing/drivers"
 	"github.com/SneedusSnake/Reservations/testing/drivers/telegram"
 	"github.com/SneedusSnake/Reservations/testing/specifications"
@@ -15,6 +16,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+const CLOCK_CACHE_PATH = "/tmp/clock_go"
 
 type StdoutLogConsumer struct{
 	Container string
@@ -50,6 +53,8 @@ func TestSuite(t *testing.T) {
 	driver := telegram.NewDriver(
 		http.DefaultClient,
 		telegramApiHost,
+		cache.NewClock(CLOCK_CACHE_PATH),
+		testApp.App,
 		t,
 	)
 
@@ -62,10 +67,14 @@ func TestSuite(t *testing.T) {
 	t.Run("User can see list of all tags attached to a subject", func(t *testing.T) {
 		specifications.SubjectTagsSpecification(t, driver)
 	})
+
+	t.Run("User can make a reservation for a subject", func(t *testing.T) {
+		specifications.ReserveSubjectSpecification(t, driver)
+	})
 }
 
 func bootApplication(t *testing.T) *TestApplication {
-	ctx := context.Background()
+	ctx := t.Context()
 	net, err := network.New(ctx)
 	assert.NoError(t, err)
 
@@ -91,7 +100,7 @@ func bootTelegramApiContainer(app *TestApplication) (testcontainers.Container, e
 		},
 		Env: map[string]string{"BOT_TOKEN": "1234567"},
 		Networks: []string{app.Network.Name},
-		NetworkAliases: map[string][]string{app.Network.Name: []string{"telegram-api"}},
+		NetworkAliases: map[string][]string{app.Network.Name: {"telegram-api"}},
 		ExposedPorts: []string{"8080"},
 		WaitingFor: wait.ForHTTP("/").WithPort("8080"),
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
@@ -112,7 +121,12 @@ func bootAppContainer(app *TestApplication) (testcontainers.Container, error) {
 			Dockerfile: "./build/Docker/Dockerfile",
 			PrintBuildLog: true,
 		},
-		Env: map[string]string{"TELEGRAM_API_HOST": "http://telegram-api:8080", "TELEGRAM_API_TOKEN": "1234567"},
+		Env: map[string]string{
+			"TELEGRAM_API_HOST": "http://telegram-api:8080",
+			"TELEGRAM_API_TOKEN": "1234567",
+			"CLOCK_DRIVER": "cache",
+			"CACHE_CLOCK_PATH": CLOCK_CACHE_PATH,
+			},
 		Networks: []string{app.Network.Name},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{
 			Opts: []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10*time.Second)},

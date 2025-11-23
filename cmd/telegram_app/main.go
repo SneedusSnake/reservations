@@ -6,9 +6,13 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/SneedusSnake/Reservations/adapters/driven/clock/cache"
+	"github.com/SneedusSnake/Reservations/adapters/driven/clock/system"
 	"github.com/SneedusSnake/Reservations/adapters/driven/persistence/inmemory"
-	"github.com/SneedusSnake/Reservations/domain/reservations"
 	"github.com/SneedusSnake/Reservations/adapters/driving/telegram"
+	"github.com/SneedusSnake/Reservations/domain"
+	"github.com/SneedusSnake/Reservations/domain/reservations"
+	"github.com/SneedusSnake/Reservations/domain/users"
 	"github.com/go-telegram/bot"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -18,10 +22,16 @@ type Config struct {
 		Host string `envconfig:"TELEGRAM_API_HOST"`
 		Token string `envconfig:"TELEGRAM_API_TOKEN"`
 	}
+	Clock string `envconfig:"CLOCK_DRIVER"`
+	CacheClockPath string `envconfig:"CACHE_CLOCK_PATH"`
 }
 
 var cfg Config;
 var subjectsStore reservations.SubjectsStore
+var usersStore users.UsersStore
+var tgUsersStore users.TelegramUsersStore
+var reservationsRegistry reservations.ReservationsRegistry
+var clock domain.Clock
 
 func main() {
 	log.Print("Starting main")
@@ -30,13 +40,24 @@ func main() {
 	loadConfig()
 
 	subjectsStore = inmemory.NewSubjectsStore()
+	usersStore = inmemory.NewUsersStore()
+	tgUsersStore = inmemory.NewTelegramUsersStore(usersStore)
+	reservationsRegistry = inmemory.NewReservationStore()
+	clock = system.SystemClock{}
+	if cfg.Clock == "cache" {
+		clock = cache.NewClock(cfg.CacheClockPath)
+	} else {
+		panic("its over")
+	}
+
 	b := tgBot()
-	adapter := telegram.NewAdapter(subjectsStore, log.Default())
+	adapter := telegram.NewAdapter(subjectsStore, usersStore, tgUsersStore, reservationsRegistry, clock, log.Default())
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_subject", bot.MatchTypePrefix, adapter.AddSubjectHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_tags", bot.MatchTypePrefix, adapter.AddSubjectTagsHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, adapter.ListSubjectsHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, adapter.ListSubjectTagsHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, adapter.ReservationHandler)
 	b.Start(ctx)
 }
 

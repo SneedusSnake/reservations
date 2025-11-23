@@ -1,122 +1,166 @@
 package telegram
 
 import (
-	"fmt"
-	"net/http"
-	"testing"
-	"io"
-	"strings"
-	"encoding/json"
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
 
+	"github.com/SneedusSnake/Reservations/adapters/driven/clock/cache"
 	"github.com/alecthomas/assert/v2"
+	"github.com/testcontainers/testcontainers-go"
 )
 
 type Message struct {
 	Id int `json:"message_id"`
 	Text string `json:"text"`
 	Chat Chat `json:"chat"`
+	From User `json:"from"`
 }
 type Chat struct {
 	Id int `json:"id"`
 }
 
+type User struct {
+	Id int `json:"id"`
+	FirstName string `json:"first_name"`
+}
+
 type TelegramDriver struct {
 	client *http.Client
 	host string
-	t *testing.T
 	messageId int
+	userId int
+	chatId int
+	clock cache.CacheClock
+	users map[string]int
+	appContainer testcontainers.Container
+	t *testing.T
 }
 
-func NewDriver(client *http.Client, host string, t *testing.T) *TelegramDriver {
+func NewDriver(client *http.Client, host string,clock cache.CacheClock, app testcontainers.Container, t *testing.T) *TelegramDriver {
 	return &TelegramDriver{
 		client,
 		host,
-		t,
 		0,
+		0,
+		1234,
+		clock,
+		make(map[string]int),
+		app,
+		t,
 	}
 }
 
 func (d *TelegramDriver) AdminAddsSubject(subject string) {
-	d.messageId++
-	clientMessage := Message{
-		Id: d.messageId,
+	msg := Message{
 		Text: "/add_subject " + subject,
-		Chat: Chat{Id: 1234},
 	}
-	encoded, err := json.Marshal(clientMessage)	
-	assert.NoError(d.t, err)
-	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
-	assert.NoError(d.t, err)
+
+	d.sendClientMessage(msg)
 }
 
 func (d *TelegramDriver) AdminAddsTagsToSubject(subject string, tags ...string) {
-	d.messageId++
-	clientMessage := Message{
-		Id: d.messageId,
+	msg := Message{
 		Text: fmt.Sprintf("/add_tags %s %s", subject, strings.Join(tags, " ")),
-		Chat: Chat{Id: 1234},
 	}
 
-	encoded, err := json.Marshal(clientMessage)	
-	assert.NoError(d.t, err)
-	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
-	assert.NoError(d.t, err)
+	d.sendClientMessage(msg)
 }
 
 func (d *TelegramDriver) UserRequestsSubjectsList() {
-	d.messageId++
-	clientMessage := Message{
+	msg := Message{
 		Id: d.messageId,
 		Text: "/list",
-		Chat: Chat{Id: 1234},
 	}
-	encoded, err := json.Marshal(clientMessage)	
-	assert.NoError(d.t, err)
-	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
-	assert.NoError(d.t, err)
+
+	d.sendClientMessage(msg)
 }
 
 func (d *TelegramDriver) UserRequestsSubjectTags(subject string) {
-	d.messageId++
-	clientMessage := Message{
+	msg := Message{
 		Id: d.messageId,
 		Text: "/tags " + subject,
-		Chat: Chat{Id: 1234},
 	}
-	encoded, err := json.Marshal(clientMessage)	
+
+	d.sendClientMessage(msg)
+}
+
+func (d *TelegramDriver) UserRequestsReservationForSubject(user string, subject string, minutes int) {
+	msg := Message{
+		Id: d.messageId,
+		Text: "/reserve " + subject + " " + strconv.Itoa(minutes),
+		From: User{Id: d.getUserId(user), FirstName: user},
+	}
+
+	d.sendClientMessage(msg)
+}
+
+func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
+	msg := d.getLastBotResponse()
+
+	subjects := strings.Split(msg, "\n")
+	for _, s := range subject {
+		assert.SliceContains(d.t, subjects, s)
+	}
+}
+
+func (d *TelegramDriver) UserSeesSubjectTags(tags ...string) {
+	msg := d.getLastBotResponse()
+
+	recievedTags := strings.Split(msg, "\n")
+	for _, tag := range tags {
+		assert.SliceContains(d.t, recievedTags, tag)
+	}
+}
+
+func (d *TelegramDriver) UserAcquiredReservationForSubject(user string, subject string, until string) {
+	msg := d.getLastBotResponse()
+
+	assert.Contains(d.t, msg, subject)
+	assert.Contains(d.t, msg, user)
+	assert.Contains(d.t, msg, until)
+}
+
+func (d *TelegramDriver) SubjectHasAlreadyBeenReservedBy(user string, until string) {
+	msg := d.getLastBotResponse()
+
+	assert.Contains(d.t, msg, "Already reserved by")
+	assert.Contains(d.t, msg, user)
+	assert.Contains(d.t, msg, until)
+}
+
+func (d *TelegramDriver) ClockSet(t string) {
+	now := time.Now()
+	parsed, err := time.Parse(time.TimeOnly, t + ":00")
+	if err != nil {
+		d.t.Fatal(err)
+	}
+	year, month, day := now.Date()
+	hour, minute, second := parsed.Clock()
+	result := time.Date(year, month, day, hour, minute, second, 0, time.Local)
+
+	d.clock.Set(result)
+	d.appContainer.CopyFileToContainer(d.t.Context(), d.clock.Path(), d.clock.Path(), 0o666)
+}
+
+func (d *TelegramDriver) sendClientMessage(msg Message) {
+	d.messageId++
+	msg.Id = d.messageId
+	msg.Chat = Chat{Id: d.chatId}
+	
+	encoded, err := json.Marshal(msg)	
 	assert.NoError(d.t, err)
 	_, err = d.client.Post(fmt.Sprintf("%s/testing/sendClientMessage", d.host), "application/json", bytes.NewBuffer(encoded))
 	assert.NoError(d.t, err)
 }
 
-func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
-	var responseData []struct{
-		ChatId int `json:"chat_id"`
-		Text string `json:"text"`
-	}
-
-	for i := 0; i < 10 && len(responseData) < len(subject); i++ {
-		r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
-		assert.NoError(d.t, err)
-
-		body, err := io.ReadAll(r.Body)
-		assert.NoError(d.t, err)
-		err = json.Unmarshal(body, &responseData)
-		assert.NoError(d.t, err)
-	}
-
-	assert.NotEqual(d.t, 0, len(responseData))
-	botMessage := responseData[len(responseData) - 1]
-
-	subjects := strings.Split(botMessage.Text, "\n")
-	for _, s := range subject {
-		assert.SliceContains(d.t, subjects, s)
-	}
-	assert.Equal(d.t, 1234, botMessage.ChatId)
-}
-
-func (d *TelegramDriver) UserSeesSubjectTags(tags ...string) {
+func (d *TelegramDriver) getLastBotResponse() string {
 	var responseData []struct{
 		ChatId int `json:"chat_id"`
 		Text string `json:"text"`
@@ -134,10 +178,19 @@ func (d *TelegramDriver) UserSeesSubjectTags(tags ...string) {
 
 	assert.NotEqual(d.t, 0, len(responseData))
 	botMessage := responseData[len(responseData) - 1]
+	assert.Equal(d.t, d.chatId, botMessage.ChatId)
 
-	recievedTags := strings.Split(botMessage.Text, "\n")
-	for _, tag := range tags {
-		assert.SliceContains(d.t, recievedTags, tag)
+	return botMessage.Text
+}
+
+func (d *TelegramDriver) getUserId(name string) int {
+	id, ok := d.users[name]
+
+	if !ok {
+		d.userId++
+		id = d.userId
+		d.users[name] = id
 	}
-	assert.Equal(d.t, 1234, botMessage.ChatId)
+
+	return id
 }

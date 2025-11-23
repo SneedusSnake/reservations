@@ -20,7 +20,7 @@ type User struct {
 	Id int `json:"id"`
 	IsBot bool `json:"is_bot"`
 	FirstName string `json:"first_name"`
-	Username string `json:"username"`
+	UserName string `json:"username"`
 }
 
 type UpdateMessage struct {
