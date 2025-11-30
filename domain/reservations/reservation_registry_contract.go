@@ -64,23 +64,27 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 		}
 	})
 
-	t.Run("it fetches reservations active at given time", func (t *testing.T) {
+	t.Run("it fetches reservations active during given period", func (t *testing.T) {
 		registry := r.NewRegistry()
-		now := time.Now()
-		pastReservations := Reservations{
-			Reservation{1,1,1, now.Add(-time.Hour*2), now},
-			Reservation{2,2,2, now.Add(-time.Hour*4), now.Add(-time.Second)},
+		from := time.Now()
+		to := time.Now().Add(time.Hour*1)
+		
+		expiredReservations := Reservations{
+			Reservation{1,1,1, from.Add(-time.Hour*2), from.Add(-time.Second)},
+			Reservation{2,2,2, from.Add(-time.Hour*4), from.Add(-time.Hour)},
 		}
-		currentReservations := Reservations{
-			Reservation{3,3,3, now.Add(-time.Hour*2), now.Add(time.Hour)},
-			Reservation{4,4,4, now.Add(-time.Hour*4), now.Add(time.Second)},
+		activeReservations := Reservations{
+			Reservation{3,3,3, from.Add(-time.Hour*2), from.Add(time.Second)},
+			Reservation{4,4,4, from, to},
+			Reservation{5,5,5, from.Add(time.Second), to.Add(-time.Second)},
+			Reservation{6,6,6, to.Add(-time.Second), to.Add(time.Minute*20)},
 		}
 		futureReservations := Reservations{
-			Reservation{5,5,5, now.Add(time.Second), now.Add(time.Hour)},
+			Reservation{7,7,7, to.Add(time.Second), to.Add(time.Hour)},
 		}
 		all := Reservations{}
-		all = append(all, pastReservations...)
-		all = append(all, currentReservations...)
+		all = append(all, expiredReservations...)
+		all = append(all, activeReservations...)
 		all = append(all, futureReservations...)
 
 		for _, reservation := range all {
@@ -90,10 +94,10 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 			}
 		}
 
-		reservations := registry.ReservedAt(now)
+		reservations := registry.ForPeriod(from, to)
 		
-		if len(reservations) != len(currentReservations) {
-			t.Errorf("Expected %d active reservations, got %d", len(currentReservations), len(reservations))
+		if len(reservations) != len(activeReservations) {
+			t.Errorf("Expected %d active reservations, got %d", len(activeReservations), len(reservations))
 		}
 	})
 
@@ -102,13 +106,13 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 		ch := make(chan int, 5)
 		var ids []int
 
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			go (func (c chan int) {
 				c <- registry.NextIdentity()
 			})(ch)
 		}
 		
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			ids = append(ids, <- ch)
 		}
 

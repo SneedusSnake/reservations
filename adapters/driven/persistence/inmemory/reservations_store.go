@@ -23,11 +23,15 @@ func (r *ReservationsStore) NextIdentity() int {
 	return r.counter
 }
 
-func (r *ReservationsStore) ReservedAt(t time.Time) reservations.Reservations {
+func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) reservations.Reservations {
 	var result []reservations.Reservation
 
+	if (from.After(to)) {
+		return result
+	}
+
 	for _, reservation := range(r.reservations) {
-		if reservation.ActiveAt(t) {
+		if inInterval(reservation.Start, from, to) || inInterval(reservation.End, from, to) {
 			result = append(result, reservation)
 		}
 	}
@@ -63,3 +67,6 @@ func (r *ReservationsStore) Remove(id int) error {
 	return errors.New(fmt.Sprintf("Reservation with id %d was not found", id));
 }
 
+func inInterval(t time.Time, from time.Time, to time.Time) bool {
+	return t.Add(time.Second).After(from) && t.Add(-time.Second).Before(to)
+}

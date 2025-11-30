@@ -12,10 +12,6 @@ type Reservation struct {
 	End       time.Time
 }
 
-func (r Reservation) ActiveAt(t time.Time) bool {
-	return r.End.After(t) && (r.Start.Before(t) || r.Start.Equal(t))
-}
-
 type Reservations []Reservation
 
 func (r Reservations) ForSubject(subjectId int) Reservations {
@@ -32,10 +28,10 @@ func (r Reservations) ForSubject(subjectId int) Reservations {
 
 type ReservationsRegistry interface {
 	NextIdentity() int
-	ReservedAt(t time.Time) Reservations
 	Add(reservation Reservation) error
 	Get(id int) (Reservation, error)
 	Remove(id int) error
+	ForPeriod(from time.Time, to time.Time) Reservations
 }
 
 

@@ -14,7 +14,7 @@ func TestClock(t *testing.T) {
 
 		result := clock.Current()
 
-		if result.Sub(result) >2*time.Second {
+		if result.Sub(result) > 2*time.Second {
 			t.Errorf("Expected datetime %s is, got %s", expected.Format(time.DateTime), result.Format(time.DateTime))
 		}
 	})
