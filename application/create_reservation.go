@@ -1,9 +1,11 @@
 package application
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/SneedusSnake/Reservations/domain"
 	"github.com/SneedusSnake/Reservations/domain/reservations"
 	"github.com/SneedusSnake/Reservations/domain/users"
 )
@@ -27,13 +29,20 @@ type CreateReservationHandler struct {
 	subjectsStore reservations.SubjectsStore
 	reservationsRegistry reservations.ReservationsRegistry
 	usersStore users.UsersStore
+	clock domain.Clock
 }
 
-func NewCreateReservationHandler(subjStore reservations.SubjectsStore, registry reservations.ReservationsRegistry, usersStore users.UsersStore) *CreateReservationHandler {
+func NewCreateReservationHandler(
+	subjStore reservations.SubjectsStore,
+	registry reservations.ReservationsRegistry,
+	usersStore users.UsersStore,
+	clock domain.Clock,
+) *CreateReservationHandler {
 	return &CreateReservationHandler{
 		subjectsStore: subjStore,
 		reservationsRegistry: registry,
 		usersStore: usersStore,
+		clock: clock,
 	}
 }
 
@@ -49,6 +58,11 @@ func (h *CreateReservationHandler) Handle(cmd CreateReservation) (reservations.R
 	if err != nil {
 		return reservations.Reservation{}, err
 	}
+
+	if h.clock.Current().After(cmd.From.Add(time.Minute)) {
+		return reservations.Reservation{}, errors.New("Attempt to make a reservation in the past")
+	}
+
 	activeReservations := h.reservationsRegistry.ForPeriod(cmd.From, cmd.To).ForSubject(cmd.SubjectId)
 
 	if len(activeReservations) > 0 {
@@ -56,7 +70,6 @@ func (h *CreateReservationHandler) Handle(cmd CreateReservation) (reservations.R
 		for _, r := range activeReservations {
 			ids = append(ids, r.Id)
 		}
-		fmt.Print(ids)
 		return reservations.Reservation{}, AlreadyReservedError{ReservationIds: ids}
 	}
 

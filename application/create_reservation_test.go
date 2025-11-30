@@ -11,22 +11,37 @@ import (
 	"github.com/alecthomas/assert/v2"
 )
 
+type FakeClock struct {
+	now time.Time
+}
+
+func (c *FakeClock) Current() time.Time {
+	return c.now
+}
+
+func (c *FakeClock) Set(t time.Time) {
+	c.now = t
+}
+
 var registry reservations.ReservationsRegistry
 
 func TestCreateReservationHandler(t *testing.T) {
 	subjectsStore := inmemory.NewSubjectsStore()
 	usersStore := inmemory.NewUsersStore()
 	registry = inmemory.NewReservationStore()
+	clock := &FakeClock{}
+	clock.Set(time.Now())
 	handler := application.NewCreateReservationHandler(
 		subjectsStore,
 		registry,
 		usersStore,
+		clock,
 	)
 	subjects := createTestSubjects(subjectsStore, t)
 	users := createTestUsers(usersStore, t)
 	futurePeriod := [2]time.Time{
-		time.Now().Add(time.Hour),
-		time.Now().Add(time.Hour*2),
+		clock.Current().Add(time.Hour),
+		clock.Current().Add(time.Hour*2),
 	}
 
 	t.Run("it returns an error if subject does not exist", func(t *testing.T) {
@@ -39,6 +54,19 @@ func TestCreateReservationHandler(t *testing.T) {
 
 	t.Run("it returns an error if user does not exist", func(t *testing.T) {
 		cmd := application.CreateReservation{subjects[0].Id, 1234, futurePeriod[0], futurePeriod[1]}
+
+		_, err := handler.Handle(cmd)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("it returns an error on attempt to create a reservation in the past", func(t *testing.T) {
+		current := clock.Current()
+		t.Cleanup(func() {
+			clock.Set(current)
+		})
+		cmd := application.CreateReservation{subjects[0].Id, users[0].Id, futurePeriod[0], futurePeriod[1]}
+		clock.Set(cmd.From.Add(time.Minute*2))
 
 		_, err := handler.Handle(cmd)
 
