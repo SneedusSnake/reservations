@@ -15,6 +15,7 @@ import (
 	"github.com/SneedusSnake/Reservations/domain/reservations"
 	"github.com/SneedusSnake/Reservations/domain/users"
 	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -53,11 +54,11 @@ func main() {
 	b := tgBot()
 	adapter := telegram.NewAdapter(subjectsStore, usersStore, tgUsersStore, reservationsRegistry, createHandler, clock, log.Default())
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_subject", bot.MatchTypePrefix, adapter.AddSubjectHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_tags", bot.MatchTypePrefix, adapter.AddSubjectTagsHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, adapter.ListSubjectsHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, adapter.ListSubjectTagsHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, adapter.ReservationHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_subject", bot.MatchTypePrefix, botHandlerFunc(adapter.AddSubjectHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_tags", bot.MatchTypePrefix, botHandlerFunc(adapter.AddSubjectTagsHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, botHandlerFunc(adapter.ListSubjectsHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, botHandlerFunc(adapter.ListSubjectTagsHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, botHandlerFunc(adapter.ReservationHandler))
 	b.Start(ctx)
 }
 
@@ -81,4 +82,24 @@ func tgBot() *bot.Bot {
 	}
 
 	return b
+}
+
+type UpdateHandler func(ctx context.Context, b *bot.Bot, update *models.Update) (string, error)
+
+func botHandlerFunc(h UpdateHandler) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		text, err := h(ctx, b, update)
+
+		if err != nil {
+			log.Print(err)
+			return
+		}
+
+		if text != "" {
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: update.Message.Chat.ID,
+				Text:   text,
+			})
+		}
+	}
 }
