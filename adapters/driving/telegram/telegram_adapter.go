@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SneedusSnake/Reservations/application"
+	"github.com/SneedusSnake/Reservations/domain"
 	"github.com/SneedusSnake/Reservations/domain/reservations"
 	"github.com/SneedusSnake/Reservations/domain/users"
-	"github.com/SneedusSnake/Reservations/domain"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
@@ -20,16 +21,26 @@ type telegramAdapter struct {
 	usersStore users.UsersStore
 	tgStore users.TelegramUsersStore
 	reservationsRegistry reservations.ReservationsRegistry
+	createHandler *application.CreateReservationHandler
 	clock domain.Clock
 	log *log.Logger
 }
 
-func NewAdapter(subStore reservations.SubjectsStore, usersStore users.UsersStore, tgStore users.TelegramUsersStore, reservations reservations.ReservationsRegistry, clock domain.Clock, log *log.Logger) *telegramAdapter {
+func NewAdapter(
+	subStore reservations.SubjectsStore,
+	usersStore users.UsersStore,
+	tgStore users.TelegramUsersStore,
+	reservations reservations.ReservationsRegistry,
+	createHandler *application.CreateReservationHandler,
+	clock domain.Clock,
+	log *log.Logger,
+) *telegramAdapter {
 	return &telegramAdapter{
 		subjectsStore: subStore,
 		usersStore: usersStore,
 		tgStore: tgStore,
 		reservationsRegistry: reservations,
+		createHandler: createHandler,
 		clock: clock,
 		log: log,
 	}
@@ -93,34 +104,44 @@ func (ta *telegramAdapter) ReservationHandler(ctx context.Context, b *bot.Bot, u
 	if err != nil {
 		ta.log.Println(err)
 	}
-	tgUser, err := ta.tgStore.Get(update.Message.From.ID)
+	user, err := ta.tgStore.Get(update.Message.From.ID)
 
 	if err != nil {
-		tgUser = users.TelegramUser{
-			TelegramId: update.Message.From.ID,
-			User: users.User{
-				Id: ta.usersStore.NextIdentity(),
-				Name: update.Message.From.FirstName,
-			},
+		user = ta.createNewTelegramUser(update.Message.From)
+	}
+
+	cmd := application.CreateReservation{UserId: user.Id, SubjectId: subject.Id, From: ta.clock.Current(), To: ta.clock.Current().Add(time.Duration(minutes)*time.Minute)}
+	r, err := ta.createHandler.Handle(cmd)
+
+	if err != nil {
+		if reservedErr, ok := err.(application.AlreadyReservedError); ok {
+			r, _ := ta.reservationsRegistry.Get(reservedErr.ReservationIds[0])
+			u, _ := ta.usersStore.Get(r.Id)
+			b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID: update.Message.Chat.ID,
+				Text:   fmt.Sprintf("Already reserved by %s until %s", u.Name, r.End.Format(time.DateTime)),
+			})
 		}
-		ta.usersStore.Add(tgUser.User)
-		ta.tgStore.Add(tgUser)
-	}
-
-	r := reservations.Reservation{
-		Id: ta.reservationsRegistry.NextIdentity(),
-		UserId: tgUser.Id,
-		SubjectId: subject.Id,
-		Start: ta.clock.Current(),
-		End: ta.clock.Current().Add(time.Duration(minutes)*time.Minute),
-	}
-	ta.reservationsRegistry.Add(r)
-	if err != nil {
 		ta.log.Println(err)
+		return
 	}
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
-		Text:   fmt.Sprintf("Reservation for %s acquired by %s until %s", subject.Name, tgUser.Name, r.End.Format(time.DateTime)),
+		Text:   fmt.Sprintf("Reservation for %s acquired by %s until %s", subject.Name, user.Name, r.End.Format(time.DateTime)),
 	})
+}
+
+func (ta *telegramAdapter) createNewTelegramUser(user *models.User) users.TelegramUser {
+	tgUser := users.TelegramUser{
+		TelegramId: user.ID,
+		User: users.User{
+			Id: ta.usersStore.NextIdentity(),
+			Name: user.FirstName,
+		},
+	}
+	ta.usersStore.Add(tgUser.User)
+	ta.tgStore.Add(tgUser)
+
+	return tgUser
 }

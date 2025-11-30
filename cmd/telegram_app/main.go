@@ -10,6 +10,7 @@ import (
 	"github.com/SneedusSnake/Reservations/adapters/driven/clock/system"
 	"github.com/SneedusSnake/Reservations/adapters/driven/persistence/inmemory"
 	"github.com/SneedusSnake/Reservations/adapters/driving/telegram"
+	"github.com/SneedusSnake/Reservations/application"
 	"github.com/SneedusSnake/Reservations/domain"
 	"github.com/SneedusSnake/Reservations/domain/reservations"
 	"github.com/SneedusSnake/Reservations/domain/users"
@@ -46,12 +47,11 @@ func main() {
 	clock = system.SystemClock{}
 	if cfg.Clock == "cache" {
 		clock = cache.NewClock(cfg.CacheClockPath)
-	} else {
-		panic("its over")
-	}
+	} 
+	createHandler := application.NewCreateReservationHandler(subjectsStore, reservationsRegistry, usersStore, clock)
 
 	b := tgBot()
-	adapter := telegram.NewAdapter(subjectsStore, usersStore, tgUsersStore, reservationsRegistry, clock, log.Default())
+	adapter := telegram.NewAdapter(subjectsStore, usersStore, tgUsersStore, reservationsRegistry, createHandler, clock, log.Default())
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_subject", bot.MatchTypePrefix, adapter.AddSubjectHandler)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_tags", bot.MatchTypePrefix, adapter.AddSubjectTagsHandler)

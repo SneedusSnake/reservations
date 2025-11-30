@@ -10,6 +10,7 @@ func ReserveSubjectSpecification(t testing.TB, driver drivers.Reservations) {
 	driver.UserRequestsReservationForSubject("Alice", "Subject#1", 30)
 	driver.UserAcquiredReservationForSubject("Alice", "Subject#1", "12:30")
 
+	driver.ClockSet("12:10")
 	driver.UserRequestsReservationForSubject("Bob", "Subject#1", 30)
 	driver.SubjectHasAlreadyBeenReservedBy("Alice", "12:30")
 }
