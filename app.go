@@ -10,22 +10,23 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/adapters/driving/telegram"
 	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/SneedusSnake/Reservations/internal/ports"
-	"github.com/SneedusSnake/Reservations/internal/ports/reservations"
-	"github.com/SneedusSnake/Reservations/internal/ports/users"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/kelseyhightower/envconfig"
 )
 
 const (
-	CLOCK              = "clock"
+	CLOCK = "clock"
 
 	STORE_SUBJECTS     = "subjects_store"
 	STORE_USERS        = "users_store"
 	STORE_TG_USERS     = "tg_users_store"
 	STORE_RESERVATIONS = "reservations_store"
 
-	HANDLER_CREATE_RESERVATION = "reservation_create_handler"
+	SERVICE_SUBJECT = "subject_service"
+	SERVICE_USER = "user_service"
+	SERVICE_TELEGRAM_USER = "telegram_user_service"
+	SERVICE_RESERVATION = "reservation_service"
 
 	TELERAM_BOT = "telegram_bot"
 )
@@ -88,13 +89,15 @@ func (app *App) registerDependencies() {
 	tgUsersStore := inmemory.NewTelegramUsersStore(usersStore)
 	reservationsStore := inmemory.NewReservationStore()
 
-
-	createReservationHandler := application.NewCreateReservationHandler(
+	reservationService := application.NewReservationService(
 		subjectsStore,
 		reservationsStore,
 		usersStore,
 		clock,
 	)
+	subjectService := application.NewSubjectService(subjectsStore)
+	userService := application.NewUserService(usersStore)
+	tgUserService := telegram.NewTelegramUserService(tgUsersStore, *userService)
 
 	tgBot := app.telegramBot()
 
@@ -104,7 +107,10 @@ func (app *App) registerDependencies() {
 	app.container[STORE_RESERVATIONS] = reservationsStore
 	app.container[CLOCK] = clock
 
-	app.container[HANDLER_CREATE_RESERVATION] = createReservationHandler
+	app.container[SERVICE_RESERVATION] = reservationService
+	app.container[SERVICE_SUBJECT] = subjectService
+	app.container[SERVICE_USER] = userService
+	app.container[SERVICE_TELEGRAM_USER] = tgUserService
 
 	app.container[TELERAM_BOT] = tgBot
 	app.registerTelegramBotHandlers()
@@ -127,11 +133,10 @@ func (app *App) telegramBot() *bot.Bot {
 func (app *App) registerTelegramBotHandlers() {
 	b := app.Resolve(TELERAM_BOT).(*bot.Bot)
 	adapter := telegram.NewAdapter(
-		app.Resolve(STORE_SUBJECTS).(reservations.SubjectsRepository),
-		app.Resolve(STORE_USERS).(users.UsersRepository),
-		app.Resolve(STORE_TG_USERS).(users.TelegramUsersRepository),
-		app.Resolve(STORE_RESERVATIONS).(reservations.ReservationsRepository),
-		app.Resolve(HANDLER_CREATE_RESERVATION).(*application.CreateReservationHandler),
+		app.Resolve(SERVICE_SUBJECT).(*application.SubjectService),
+		app.Resolve(SERVICE_RESERVATION).(*application.ReservationService),
+		app.Resolve(SERVICE_USER).(*application.UserService),
+		app.Resolve(SERVICE_TELEGRAM_USER).(*telegram.TelegramUserService),
 		app.Resolve(CLOCK).(ports.Clock),
 		app.Log,
 	)
@@ -140,7 +145,7 @@ func (app *App) registerTelegramBotHandlers() {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_tags", bot.MatchTypePrefix, botHandlerFunc(adapter.AddSubjectTagsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, botHandlerFunc(adapter.ListSubjectsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, botHandlerFunc(adapter.ListSubjectTagsHandler))
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, botHandlerFunc(adapter.ReservationHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, botHandlerFunc(adapter.CreateReservationHandler))
 }
 
 type UpdateHandler func(ctx context.Context, b *bot.Bot, update *models.Update) (string, error)

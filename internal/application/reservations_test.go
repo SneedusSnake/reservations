@@ -26,13 +26,13 @@ func (c *FakeClock) Set(t time.Time) {
 
 var registry reservationsPort.ReservationsRepository
 
-func TestCreateReservationHandler(t *testing.T) {
+func TestCreateReservation(t *testing.T) {
 	subjectsStore := inmemory.NewSubjectsStore()
 	usersStore := inmemory.NewUsersStore()
 	registry = inmemory.NewReservationStore()
 	clock := &FakeClock{}
 	clock.Set(time.Now())
-	handler := application.NewCreateReservationHandler(
+	handler := application.NewReservationService(
 		subjectsStore,
 		registry,
 		usersStore,

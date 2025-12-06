@@ -26,20 +26,20 @@ func (e AlreadyReservedError) Error() string {
 	return string(fmt.Sprintf("Unable to create reservation: conflict with reservations {IDs: %v}", e.ReservationIds))
 }
 
-type CreateReservationHandler struct {
+type ReservationService struct {
 	subjectsStore reservationsPort.SubjectsRepository
 	reservationsRegistry reservationsPort.ReservationsRepository
 	usersStore usersPort.UsersRepository
 	clock ports.Clock
 }
 
-func NewCreateReservationHandler(
+func NewReservationService(
 	subjStore reservationsPort.SubjectsRepository,
 	registry reservationsPort.ReservationsRepository,
 	usersStore usersPort.UsersRepository,
 	clock ports.Clock,
-) *CreateReservationHandler {
-	return &CreateReservationHandler{
+) *ReservationService {
+	return &ReservationService{
 		subjectsStore: subjStore,
 		reservationsRegistry: registry,
 		usersStore: usersStore,
@@ -47,24 +47,24 @@ func NewCreateReservationHandler(
 	}
 }
 
-func (h *CreateReservationHandler) Handle(cmd CreateReservation) (reservations.Reservation, error) {
-	_, err := h.usersStore.Get(cmd.UserId)
+func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reservation, error) {
+	_, err := s.usersStore.Get(cmd.UserId)
 
 	if err != nil {
 		return reservations.Reservation{}, err
 	}
 
-	_, err = h.subjectsStore.Get(cmd.SubjectId)
+	_, err = s.subjectsStore.Get(cmd.SubjectId)
 
 	if err != nil {
 		return reservations.Reservation{}, err
 	}
 
-	if h.clock.Current().After(cmd.From.Add(time.Minute)) {
+	if s.clock.Current().After(cmd.From.Add(time.Minute)) {
 		return reservations.Reservation{}, errors.New("Attempt to make a reservation in the past")
 	}
 
-	activeReservations := h.reservationsRegistry.ForPeriod(cmd.From, cmd.To).ForSubject(cmd.SubjectId)
+	activeReservations := s.reservationsRegistry.ForPeriod(cmd.From, cmd.To).ForSubject(cmd.SubjectId)
 
 	if len(activeReservations) > 0 {
 		var ids []int
@@ -75,13 +75,17 @@ func (h *CreateReservationHandler) Handle(cmd CreateReservation) (reservations.R
 	}
 
 	reservation := reservations.Reservation{
-		Id: h.reservationsRegistry.NextIdentity(),
+		Id: s.reservationsRegistry.NextIdentity(),
 		UserId: cmd.UserId,
 		SubjectId: cmd.SubjectId,
 		Start: cmd.From,
 		End: cmd.To,
 	}
-	h.reservationsRegistry.Add(reservation)
+	s.reservationsRegistry.Add(reservation)
 
 	return reservation, nil
+}
+
+func (s *ReservationService) Get(id int) (reservations.Reservation, error) {
+	return s.reservationsRegistry.Get(id)
 }

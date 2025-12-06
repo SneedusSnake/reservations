@@ -5,15 +5,15 @@ import (
 	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
 )
 
-type subjectsHandler struct {
+type SubjectService struct {
 	store reservationsPort.SubjectsRepository
 }
 
-type AddSubjectHandler struct {
-	subjectsHandler
+func NewSubjectService(store reservationsPort.SubjectsRepository) *SubjectService {
+	return &SubjectService{store: store}
 }
 
-func (h *AddSubjectHandler) Handle(name string) (reservations.Subject, error) {
+func (h *SubjectService) Create(name string) (reservations.Subject, error) {
 	subject := reservations.Subject{
 		Id: h.store.NextIdentity(),
 		Name: name,
@@ -27,18 +27,14 @@ func (h *AddSubjectHandler) Handle(name string) (reservations.Subject, error) {
 	return subject, nil
 }
 
-type AddSubjectTags struct {
-	subjectId int
-	tags []string
+type AddTags struct {
+	SubjectId int
+	Tags []string
 }
 
-type AddSubjectTagsHandler struct {
-	subjectsHandler
-}
-
-func (h *AddSubjectTagsHandler) Handle(cmd AddSubjectTags) error {
-	for _, tag := range cmd.tags {
-		err := h.store.AddTag(cmd.subjectId, tag)
+func (h *SubjectService) AddTags(cmd AddTags) error {
+	for _, tag := range cmd.Tags {
+		err := h.store.AddTag(cmd.SubjectId, tag)
 		if err != nil {
 			return err
 		}
@@ -47,18 +43,10 @@ func (h *AddSubjectTagsHandler) Handle(cmd AddSubjectTags) error {
 	return nil
 }
 
-type ListSubjectsHandler struct {
-	subjectsHandler
-}
-
-func (h *ListSubjectsHandler) Handle() reservations.Subjects {
+func (h *SubjectService) List() reservations.Subjects {
 	return h.store.List()
 }
 
-type ListSubjectTagsHandler struct {
-	subjectsHandler
-}
-
-func (h *ListSubjectTagsHandler) Handle(subjectId int) ([]string, error) {
+func (h *SubjectService) ListTags(subjectId int) ([]string, error) {
 	return h.store.GetTags(subjectId)
 }
