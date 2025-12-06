@@ -27,14 +27,3 @@ func (subjects Subjects) Find(name string) (Subject, error) {
 	}
 	return Subject{}, fmt.Errorf("No subject with name %s found", name)
 }
-
-type SubjectsStore interface {
-	NextIdentity() int
-	Add(s Subject) error
-	Get(id int) (Subject, error)
-	List() Subjects
-	Remove(id int) error
-	AddTag(id int, tag string) error
-	GetTags(id int) ([]string, error)
-	GetByTags(tags []string) Subjects
-}

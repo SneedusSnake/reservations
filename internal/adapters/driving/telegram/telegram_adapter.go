@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/internal/domain"
+	"github.com/SneedusSnake/Reservations/internal/ports"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
 	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
@@ -24,7 +24,7 @@ type telegramAdapter struct {
 	tgStore usersPort.TelegramUsersRepository
 	reservationsRegistry reservationsPort.ReservationsRepository
 	createHandler *application.CreateReservationHandler
-	clock domain.Clock
+	clock ports.Clock
 	log *log.Logger
 }
 
@@ -36,7 +36,7 @@ func NewAdapter(
 	tgStore usersPort.TelegramUsersRepository,
 	reservations reservationsPort.ReservationsRepository,
 	createHandler *application.CreateReservationHandler,
-	clock domain.Clock,
+	clock ports.Clock,
 	log *log.Logger,
 ) *telegramAdapter {
 	return &telegramAdapter{

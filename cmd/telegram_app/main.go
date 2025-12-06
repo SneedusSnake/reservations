@@ -11,7 +11,7 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/persistence/inmemory"
 	"github.com/SneedusSnake/Reservations/internal/adapters/driving/telegram"
 	"github.com/SneedusSnake/Reservations/internal/application"
-	"github.com/SneedusSnake/Reservations/internal/domain"
+	"github.com/SneedusSnake/Reservations/internal/ports"
 	"github.com/SneedusSnake/Reservations/internal/ports/users"
 	"github.com/SneedusSnake/Reservations/internal/ports/reservations"
 	"github.com/go-telegram/bot"
@@ -33,7 +33,7 @@ var subjectsStore reservations.SubjectsRepository
 var usersStore users.UsersRepository
 var tgUsersStore users.TelegramUsersRepository
 var reservationsRegistry reservations.ReservationsRepository
-var clock domain.Clock
+var clock ports.Clock
 
 func main() {
 	log.Print("Starting main")

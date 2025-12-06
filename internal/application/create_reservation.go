@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/internal/domain"
+	"github.com/SneedusSnake/Reservations/internal/ports"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
 	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
@@ -30,14 +30,14 @@ type CreateReservationHandler struct {
 	subjectsStore reservationsPort.SubjectsRepository
 	reservationsRegistry reservationsPort.ReservationsRepository
 	usersStore usersPort.UsersRepository
-	clock domain.Clock
+	clock ports.Clock
 }
 
 func NewCreateReservationHandler(
 	subjStore reservationsPort.SubjectsRepository,
 	registry reservationsPort.ReservationsRepository,
 	usersStore usersPort.UsersRepository,
-	clock domain.Clock,
+	clock ports.Clock,
 ) *CreateReservationHandler {
 	return &CreateReservationHandler{
 		subjectsStore: subjStore,

@@ -1,9 +1,12 @@
 package application
 
-import "github.com/SneedusSnake/Reservations/internal/domain/reservations"
+import (
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
+	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
+)
 
 type subjectsHandler struct {
-	store reservations.SubjectsStore
+	store reservationsPort.SubjectsRepository
 }
 
 type AddSubjectHandler struct {
