@@ -4,14 +4,15 @@ import (
 	"fmt"
 
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	ports "github.com/SneedusSnake/Reservations/internal/ports/users"
 )
 
 type TelegramUsersStore struct {
-	users users.UsersStore
+	users ports.UsersRepository
 	links map[int64]int
 }
 
-func NewTelegramUsersStore(s users.UsersStore) *TelegramUsersStore {
+func NewTelegramUsersStore(s ports.UsersRepository) *TelegramUsersStore {
 	return &TelegramUsersStore{s, make(map[int64]int)}
 }
 

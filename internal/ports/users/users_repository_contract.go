@@ -1,24 +1,27 @@
 package users
 
-import "testing"
+import (
+	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	"testing"
+)
 
-type UsersStoreContract struct {
-	NewStore func() UsersStore
+type UsersRepositoryContract struct {
+	NewStore func() UsersRepository
 }
 
-func (s UsersStoreContract) Test(t *testing.T) {
+func (s UsersRepositoryContract) Test(t *testing.T) {
 	store := s.NewStore()
 
 	t.Run("it returns error when user was not found", func(t *testing.T) {
 		_, err := store.Get(1234)
-	
+
 		if err == nil {
 			t.Error("Expected to see error, got nil")
 		}
 	})
 
 	t.Run("it adds a new user to the store", func(t *testing.T) {
-		user := User{Id: store.NextIdentity(), Name: "Adam"}
+		user := users.User{Id: store.NextIdentity(), Name: "Adam"}
 		t.Cleanup(func() {
 			store.Remove(user.Id)
 		})
@@ -38,9 +41,9 @@ func (s UsersStoreContract) Test(t *testing.T) {
 			t.Errorf("Expected to find %v, got %v", user, foundUser)
 		}
 	})
-	
+
 	t.Run("It cannot add user with same id twice", func(t *testing.T) {
-		user := User{Id: store.NextIdentity(), Name: "Eve"}
+		user := users.User{Id: store.NextIdentity(), Name: "Eve"}
 		t.Cleanup(func() {
 			store.Remove(user.Id)
 		})

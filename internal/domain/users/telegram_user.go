@@ -5,7 +5,3 @@ type TelegramUser struct {
 	User
 }
 
-type TelegramUsersStore interface {
-	Add(u TelegramUser) error
-	Get(tgId int64) (TelegramUser, error)
-}

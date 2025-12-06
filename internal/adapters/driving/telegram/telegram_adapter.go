@@ -11,6 +11,7 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/domain"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	userPorts "github.com/SneedusSnake/Reservations/internal/ports/users"
 	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -18,8 +19,8 @@ import (
 
 type telegramAdapter struct {
 	subjectsStore reservations.SubjectsStore
-	usersStore users.UsersStore
-	tgStore users.TelegramUsersStore
+	usersStore userPorts.UsersRepository
+	tgStore userPorts.TelegramUsersRepository
 	reservationsRegistry reservations.ReservationsRegistry
 	createHandler *application.CreateReservationHandler
 	clock domain.Clock
