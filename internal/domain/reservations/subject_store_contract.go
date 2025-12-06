@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/SneedusSnake/Reservations/utils"
+	"github.com/SneedusSnake/Reservations/internal/utils"
 )
 
 type SubjectStoreContract struct {

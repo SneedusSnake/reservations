@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 	"time"
-	"github.com/SneedusSnake/Reservations/utils"
+	"github.com/SneedusSnake/Reservations/internal/utils"
 )
 
 type ReservationsRegistryContract struct {

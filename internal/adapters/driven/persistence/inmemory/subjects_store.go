@@ -5,8 +5,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/SneedusSnake/Reservations/domain/reservations"
-	"github.com/SneedusSnake/Reservations/utils"
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
+	"github.com/SneedusSnake/Reservations/internal/utils"
 )
 
 type SubjectsStore struct {

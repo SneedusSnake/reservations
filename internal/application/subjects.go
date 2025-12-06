@@ -1,6 +1,6 @@
 package application
 
-import "github.com/SneedusSnake/Reservations/domain/reservations"
+import "github.com/SneedusSnake/Reservations/internal/domain/reservations"
 
 type subjectsHandler struct {
 	store reservations.SubjectsStore

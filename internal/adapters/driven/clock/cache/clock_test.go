@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/adapters/driven/clock/cache"
+	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
 )
 
 func TestClock(t *testing.T) {

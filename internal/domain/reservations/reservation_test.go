@@ -3,7 +3,7 @@ package reservations_test
 import (
 	"testing"
 	"time"
-	"github.com/SneedusSnake/Reservations/domain/reservations"
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 )
 
 func TestReservations(t *testing.T) {

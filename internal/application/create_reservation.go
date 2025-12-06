@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/domain"
-	"github.com/SneedusSnake/Reservations/domain/reservations"
-	"github.com/SneedusSnake/Reservations/domain/users"
+	"github.com/SneedusSnake/Reservations/internal/domain"
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
+	"github.com/SneedusSnake/Reservations/internal/domain/users"
 )
 
 type CreateReservation struct {

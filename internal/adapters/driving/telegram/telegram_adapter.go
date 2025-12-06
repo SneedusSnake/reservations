@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/application"
-	"github.com/SneedusSnake/Reservations/domain"
-	"github.com/SneedusSnake/Reservations/domain/reservations"
-	"github.com/SneedusSnake/Reservations/domain/users"
+	"github.com/SneedusSnake/Reservations/internal/domain"
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
+	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )

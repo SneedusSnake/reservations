@@ -3,7 +3,7 @@ package inmemory
 import (
 	"fmt"
 
-	"github.com/SneedusSnake/Reservations/domain/users"
+	"github.com/SneedusSnake/Reservations/internal/domain/users"
 )
 
 type UsersStore struct {

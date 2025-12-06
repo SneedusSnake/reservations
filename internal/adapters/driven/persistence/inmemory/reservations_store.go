@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"errors"
-	"github.com/SneedusSnake/Reservations/domain/reservations"
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 )
 
 type ReservationsStore struct

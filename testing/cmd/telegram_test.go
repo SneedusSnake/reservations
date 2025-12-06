@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/adapters/driven/clock/cache"
+	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
 	"github.com/SneedusSnake/Reservations/testing/drivers"
 	"github.com/SneedusSnake/Reservations/testing/drivers/telegram"
 	"github.com/SneedusSnake/Reservations/testing/specifications"

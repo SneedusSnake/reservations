@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/adapters/driven/persistence/inmemory"
-	"github.com/SneedusSnake/Reservations/application"
-	"github.com/SneedusSnake/Reservations/domain/reservations"
-	"github.com/SneedusSnake/Reservations/domain/users"
+	"github.com/SneedusSnake/Reservations/internal/adapters/driven/persistence/inmemory"
+	"github.com/SneedusSnake/Reservations/internal/application"
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
+	"github.com/SneedusSnake/Reservations/internal/domain/users"
 	"github.com/alecthomas/assert/v2"
 )
 
