@@ -11,17 +11,18 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/domain"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
-	userPorts "github.com/SneedusSnake/Reservations/internal/ports/users"
+	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
+	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
 	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
 type telegramAdapter struct {
-	subjectsStore reservations.SubjectsStore
-	usersStore userPorts.UsersRepository
-	tgStore userPorts.TelegramUsersRepository
-	reservationsRegistry reservations.ReservationsRegistry
+	subjectsStore reservationsPort.SubjectsRepository
+	usersStore usersPort.UsersRepository
+	tgStore usersPort.TelegramUsersRepository
+	reservationsRegistry reservationsPort.ReservationsRepository
 	createHandler *application.CreateReservationHandler
 	clock domain.Clock
 	log *log.Logger
@@ -30,10 +31,10 @@ type telegramAdapter struct {
 type UpdateHandler func(ctx context.Context, b *bot.Bot, update *models.Update) (string, error)
 
 func NewAdapter(
-	subStore reservations.SubjectsStore,
-	usersStore users.UsersStore,
-	tgStore users.TelegramUsersStore,
-	reservations reservations.ReservationsRegistry,
+	subStore reservationsPort.SubjectsRepository,
+	usersStore usersPort.UsersRepository,
+	tgStore usersPort.TelegramUsersRepository,
+	reservations reservationsPort.ReservationsRepository,
 	createHandler *application.CreateReservationHandler,
 	clock domain.Clock,
 	log *log.Logger,

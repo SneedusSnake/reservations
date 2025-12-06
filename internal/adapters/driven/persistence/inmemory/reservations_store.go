@@ -3,7 +3,6 @@ package inmemory
 import (
 	"fmt"
 	"time"
-	"errors"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 )
 
@@ -52,7 +51,7 @@ func (r *ReservationsStore) Get(id int) (reservations.Reservation, error) {
 		}
 	}
 
-	return reservations.Reservation{}, errors.New(fmt.Sprintf("Reservation with id %d was not found", id))
+	return reservations.Reservation{}, fmt.Errorf("Reservation with id %d was not found", id)
 }
 
 func (r *ReservationsStore) Remove(id int) error {
@@ -64,7 +63,7 @@ func (r *ReservationsStore) Remove(id int) error {
 		}
 	}
 
-	return errors.New(fmt.Sprintf("Reservation with id %d was not found", id));
+	return fmt.Errorf("Reservation with id %d was not found", id);
 }
 
 func inInterval(t time.Time, from time.Time, to time.Time) bool {

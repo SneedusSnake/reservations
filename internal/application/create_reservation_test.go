@@ -8,6 +8,7 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
 	"github.com/alecthomas/assert/v2"
 )
 
@@ -23,7 +24,7 @@ func (c *FakeClock) Set(t time.Time) {
 	c.now = t
 }
 
-var registry reservations.ReservationsRegistry
+var registry reservationsPort.ReservationsRepository
 
 func TestCreateReservationHandler(t *testing.T) {
 	subjectsStore := inmemory.NewSubjectsStore()
@@ -119,7 +120,7 @@ func TestCreateReservationHandler(t *testing.T) {
 	})
 }
 
-func createTestSubjects(store reservations.SubjectsStore, t *testing.T) reservations.Subjects {
+func createTestSubjects(store reservationsPort.SubjectsRepository, t *testing.T) reservations.Subjects {
 	subjects := reservations.Subjects{
 		reservations.Subject{Id: 1, Name: "Subject#1"},
 		reservations.Subject{Id: 2, Name: "Subject#2"},

@@ -12,8 +12,8 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/adapters/driving/telegram"
 	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/SneedusSnake/Reservations/internal/domain"
-	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
-	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	"github.com/SneedusSnake/Reservations/internal/ports/users"
+	"github.com/SneedusSnake/Reservations/internal/ports/reservations"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/kelseyhightower/envconfig"
@@ -29,10 +29,10 @@ type Config struct {
 }
 
 var cfg Config;
-var subjectsStore reservations.SubjectsStore
-var usersStore users.UsersStore
-var tgUsersStore users.TelegramUsersStore
-var reservationsRegistry reservations.ReservationsRegistry
+var subjectsStore reservations.SubjectsRepository
+var usersStore users.UsersRepository
+var tgUsersStore users.TelegramUsersRepository
+var reservationsRegistry reservations.ReservationsRepository
 var clock domain.Clock
 
 func main() {

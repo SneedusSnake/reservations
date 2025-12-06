@@ -4,14 +4,15 @@ import (
 	"slices"
 	"testing"
 	"time"
+	domain "github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/utils"
 )
 
-type ReservationsRegistryContract struct {
-	NewRegistry func() ReservationsRegistry
+type ReservationsRepositoryContract struct {
+	NewRegistry func() ReservationsRepository
 }
 
-func (r ReservationsRegistryContract) Test (t *testing.T) {
+func (r ReservationsRepositoryContract) Test (t *testing.T) {
 	t.Run("it returns error when the reservation was not found", func (t *testing.T) {
 		registry := r.NewRegistry()
 		_, err := registry.Get(1234567)
@@ -23,7 +24,7 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 
 	t.Run("it adds a new reservation into the registry", func (t *testing.T) {
 		registry := r.NewRegistry()
-		reservation := Reservation{1,2,3, time.Now(), time.Now()}
+		reservation := domain.Reservation{Id: 1,UserId: 2,SubjectId: 3, Start: time.Now(), End: time.Now()}
 
 		err := registry.Add(reservation)
 
@@ -44,7 +45,7 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 
 	t.Run("it removes reservation from the registry", func (t *testing.T) {
 		registry := r.NewRegistry()
-		reservation := Reservation{1,2,3, time.Now(), time.Now()}
+		reservation := domain.Reservation{Id: 1,UserId: 2,SubjectId: 3, Start: time.Now(), End: time.Now()}
 		err := registry.Add(reservation)
 
 		if err != nil {
@@ -69,20 +70,20 @@ func (r ReservationsRegistryContract) Test (t *testing.T) {
 		from := time.Now()
 		to := time.Now().Add(time.Hour*1)
 		
-		expiredReservations := Reservations{
-			Reservation{1,1,1, from.Add(-time.Hour*2), from.Add(-time.Second)},
-			Reservation{2,2,2, from.Add(-time.Hour*4), from.Add(-time.Hour)},
+		expiredReservations := domain.Reservations{
+			domain.Reservation{Id: 1,UserId: 1,SubjectId: 1, Start: from.Add(-time.Hour*2), End: from.Add(-time.Second)},
+			domain.Reservation{Id: 2,UserId: 2,SubjectId: 2, Start: from.Add(-time.Hour*4), End: from.Add(-time.Hour)},
 		}
-		activeReservations := Reservations{
-			Reservation{3,3,3, from.Add(-time.Hour*2), from.Add(time.Second)},
-			Reservation{4,4,4, from, to},
-			Reservation{5,5,5, from.Add(time.Second), to.Add(-time.Second)},
-			Reservation{6,6,6, to.Add(-time.Second), to.Add(time.Minute*20)},
+		activeReservations := domain.Reservations{
+			domain.Reservation{Id: 3,UserId: 3,SubjectId: 3, Start: from.Add(-time.Hour*2), End: from.Add(time.Second)},
+			domain.Reservation{Id: 4,UserId: 4,SubjectId: 4, Start: from, End: to},
+			domain.Reservation{Id: 5,UserId: 5,SubjectId: 5, Start: from.Add(time.Second), End: to.Add(-time.Second)},
+			domain.Reservation{Id: 6,UserId: 6,SubjectId: 6, Start: to.Add(-time.Second), End: to.Add(time.Minute*20)},
 		}
-		futureReservations := Reservations{
-			Reservation{7,7,7, to.Add(time.Second), to.Add(time.Hour)},
+		futureReservations := domain.Reservations{
+			domain.Reservation{Id: 7,UserId: 7,SubjectId: 7, Start: to.Add(time.Second), End: to.Add(time.Hour)},
 		}
-		all := Reservations{}
+		all := domain.Reservations{}
 		all = append(all, expiredReservations...)
 		all = append(all, activeReservations...)
 		all = append(all, futureReservations...)

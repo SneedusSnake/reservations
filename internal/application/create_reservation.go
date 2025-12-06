@@ -7,7 +7,8 @@ import (
 
 	"github.com/SneedusSnake/Reservations/internal/domain"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
-	"github.com/SneedusSnake/Reservations/internal/domain/users"
+	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
+	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
 )
 
 type CreateReservation struct {
@@ -26,16 +27,16 @@ func (e AlreadyReservedError) Error() string {
 }
 
 type CreateReservationHandler struct {
-	subjectsStore reservations.SubjectsStore
-	reservationsRegistry reservations.ReservationsRegistry
-	usersStore users.UsersStore
+	subjectsStore reservationsPort.SubjectsRepository
+	reservationsRegistry reservationsPort.ReservationsRepository
+	usersStore usersPort.UsersRepository
 	clock domain.Clock
 }
 
 func NewCreateReservationHandler(
-	subjStore reservations.SubjectsStore,
-	registry reservations.ReservationsRegistry,
-	usersStore users.UsersStore,
+	subjStore reservationsPort.SubjectsRepository,
+	registry reservationsPort.ReservationsRepository,
+	usersStore usersPort.UsersRepository,
 	clock domain.Clock,
 ) *CreateReservationHandler {
 	return &CreateReservationHandler{

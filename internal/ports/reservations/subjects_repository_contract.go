@@ -4,16 +4,17 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/utils"
 )
 
-type SubjectStoreContract struct {
-	NewStore func() SubjectsStore
+type SubjectsRepositoryContract struct {
+	NewStore func() SubjectsRepository
 }
 
-func (s SubjectStoreContract) Test (t *testing.T) {
+func (s SubjectsRepositoryContract) Test (t *testing.T) {
 	store := s.NewStore()
-	cleanUp := func (subjects ...Subject) {
+	cleanUp := func (subjects ...reservations.Subject) {
 		for _, subject := range subjects {
 			store.Remove(subject.Id)
 		}
@@ -28,7 +29,7 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 	})
 
 	t.Run("it adds a new subject to the store", func(t *testing.T) {
-		subject := Subject{1, "Test subject"}
+		subject := reservations.Subject{Id: 1, Name: "Test subject"}
 
 		err := store.Add(subject)
 
@@ -50,7 +51,7 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 	})
 
 	t.Run("it removes a subject from the store", func(t *testing.T) {
-		subject := Subject{1, "Test subject"}
+		subject := reservations.Subject{Id: 1, Name: "Test subject"}
 		err := store.Add(subject)
 
 		if err != nil {
@@ -71,9 +72,9 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 	})
 
 	t.Run("it returns list of all subjects", func(t *testing.T) {
-		store.Add(Subject{1, "Subject 1"})
-		store.Add(Subject{2, "Subject 2"})
-		store.Add(Subject{3, "Subject 3"})
+		store.Add(reservations.Subject{Id: 1, Name: "Subject 1"})
+		store.Add(reservations.Subject{Id: 2, Name: "Subject 2"})
+		store.Add(reservations.Subject{Id: 3, Name: "Subject 3"})
 
 		subjects := store.List()
 
@@ -85,11 +86,11 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 	})
 
 	t.Run("it can add tags and filter by them", func(t *testing.T) {
-		subjects := []Subject{
-			{1, "Conference room #1"},
-			{2, "Conference room #2"},
-			{3, "Conference room #3"},
-			{4, "Conference room #4"},
+		subjects := []reservations.Subject{
+			{Id: 1, Name: "Conference room #1"},
+			{Id: 2, Name: "Conference room #2"},
+			{Id: 3, Name: "Conference room #3"},
+			{Id: 4, Name: "Conference room #4"},
 		}
 
 		for _, subject := range subjects {
@@ -120,7 +121,7 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 	})
 
 	t.Run("it cannot add same tag to the same subject twice", func(t *testing.T) {
-		err := store.Add(Subject{1, "Test"})
+		err := store.Add(reservations.Subject{Id: 1, Name: "Test"})
 
 			if err != nil {
 				t.Fatal(err)
@@ -128,7 +129,7 @@ func (s SubjectStoreContract) Test (t *testing.T) {
 	})
 
 	t.Run("it returns all tags of a subject", func(t *testing.T) {
-		subject := Subject{1, "Test"}
+		subject := reservations.Subject{Id: 1, Name: "Test"}
 		err := store.Add(subject)
 		if err != nil {
 			t.Fatal(err)

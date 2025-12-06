@@ -26,12 +26,3 @@ func (r Reservations) ForSubject(subjectId int) Reservations {
 	return filtered
 }
 
-type ReservationsRegistry interface {
-	NextIdentity() int
-	Add(reservation Reservation) error
-	Get(id int) (Reservation, error)
-	Remove(id int) error
-	ForPeriod(from time.Time, to time.Time) Reservations
-}
-
-
