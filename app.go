@@ -162,6 +162,7 @@ func botHandlerFunc(h UpdateHandler) bot.HandlerFunc {
 		if text != "" {
 			b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: update.Message.Chat.ID,
+				MessageThreadID: update.Message.MessageThreadID,
 				Text:   text,
 			})
 		}
