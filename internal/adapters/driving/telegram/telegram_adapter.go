@@ -120,7 +120,7 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 	if err != nil {
 		if reservedErr, ok := err.(application.AlreadyReservedError); ok {
 			r, _ := ta.reservationsService.Get(reservedErr.ReservationIds[0])
-			u, _ := ta.userService.Get(r.Id)
+			u, _ := ta.userService.Get(r.UserId)
 			return fmt.Sprintf("Already reserved by %s until %s", u.Name, r.End.Format(time.DateTime)), nil
 		}
 		return "", err
