@@ -146,6 +146,7 @@ func (app *App) registerTelegramBotHandlers() {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, botHandlerFunc(adapter.ListSubjectsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, botHandlerFunc(adapter.ListSubjectTagsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, botHandlerFunc(adapter.CreateReservationHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/remove", bot.MatchTypePrefix, botHandlerFunc(adapter.RemoveReservationHandler))
 }
 
 type UpdateHandler func(ctx context.Context, b *bot.Bot, update *models.Update) (string, error)

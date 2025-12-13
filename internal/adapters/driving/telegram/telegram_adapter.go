@@ -130,10 +130,22 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 }
 
 func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling create reservation command")
+	ta.log.Println("Handling remove reservation command")
 	args := strings.SplitN(update.Message.Text, " ", 2)
 	subject, err := ta.subjectService.List().Find(args[1])
 
+	if err != nil {
+		return "", err
+	}
+
+	user, err := ta.telegramUserService.Get(update.Message.From.ID)
+
+	if err != nil {
+		return "", err
+	}
+
+	err = ta.reservationsService.Remove(application.RemoveReservations{UserId: user.Id, SubjectId: subject.Id})
+	
 	if err != nil {
 		return "", err
 	}
