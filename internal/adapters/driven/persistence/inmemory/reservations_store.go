@@ -22,6 +22,10 @@ func (r *ReservationsStore) NextIdentity() int {
 	return r.counter
 }
 
+func (r *ReservationsStore) List() reservations.Reservations {
+	return r.reservations
+}
+
 func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) reservations.Reservations {
 	var result []reservations.Reservation
 

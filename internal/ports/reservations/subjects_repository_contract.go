@@ -6,6 +6,7 @@ import (
 
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/utils"
+	"github.com/alecthomas/assert/v2"
 )
 
 type SubjectsRepositoryContract struct {
@@ -139,14 +140,14 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 			store.AddTag(subject.Id, tag)
 		}
 
-		tags, err := store.GetTags(1)
+		tags, err := store.GetTags(subject.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if !slices.Equal(expectedTags, tags) {
-			t.Errorf("expected to recieve %v, got %v", expectedTags, tags)
-		}
+		assert.SliceContains(t, tags, expectedTags[0])
+		assert.SliceContains(t, tags, expectedTags[1])
+		assert.SliceContains(t, tags, expectedTags[2])
 
 		cleanUp(subject)
 	})

@@ -9,6 +9,7 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
 	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
+	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
 	"github.com/alecthomas/assert/v2"
 )
 
@@ -24,31 +25,28 @@ func (c *FakeClock) Set(t time.Time) {
 	c.now = t
 }
 
-var registry reservationsPort.ReservationsRepository
+func (c *FakeClock) TimeTravel(minutes int) time.Time {
+	return c.Current().Add(time.Minute*time.Duration(minutes))
+}
+
+var subjectsStore reservationsPort.SubjectsRepository
+var reservationsStore reservationsPort.ReservationsRepository
+var usersStore usersPort.UsersRepository
+var clock *FakeClock
 
 func TestCreateReservation(t *testing.T) {
-	subjectsStore := inmemory.NewSubjectsStore()
-	usersStore := inmemory.NewUsersStore()
-	registry = inmemory.NewReservationStore()
-	clock := &FakeClock{}
-	clock.Set(time.Now())
-	handler := application.NewReservationService(
-		subjectsStore,
-		registry,
-		usersStore,
-		clock,
-	)
+	handler := getSUT()
 	subjects := createTestSubjects(subjectsStore, t)
 	users := createTestUsers(usersStore, t)
 	futurePeriod := [2]time.Time{
 		clock.Current().Add(time.Hour),
-		clock.Current().Add(time.Hour*2),
+		clock.Current().Add(time.Hour * 2),
 	}
 
 	t.Run("it returns an error if subject does not exist", func(t *testing.T) {
 		cmd := application.CreateReservation{1234, users[0].Id, futurePeriod[0], futurePeriod[1]}
 
-		_, err := handler.Handle(cmd)
+		_, err := handler.Create(cmd)
 
 		assert.Error(t, err)
 	})
@@ -56,7 +54,7 @@ func TestCreateReservation(t *testing.T) {
 	t.Run("it returns an error if user does not exist", func(t *testing.T) {
 		cmd := application.CreateReservation{subjects[0].Id, 1234, futurePeriod[0], futurePeriod[1]}
 
-		_, err := handler.Handle(cmd)
+		_, err := handler.Create(cmd)
 
 		assert.Error(t, err)
 	})
@@ -67,9 +65,9 @@ func TestCreateReservation(t *testing.T) {
 			clock.Set(current)
 		})
 		cmd := application.CreateReservation{subjects[0].Id, users[0].Id, futurePeriod[0], futurePeriod[1]}
-		clock.Set(cmd.From.Add(time.Minute*2))
+		clock.Set(cmd.From.Add(time.Minute * 2))
 
-		_, err := handler.Handle(cmd)
+		_, err := handler.Create(cmd)
 
 		assert.Error(t, err)
 	})
@@ -79,18 +77,18 @@ func TestCreateReservation(t *testing.T) {
 		subject := subjects[0]
 		cmd := application.CreateReservation{subject.Id, user.Id, futurePeriod[0], futurePeriod[1]}
 
-		result, err := handler.Handle(cmd)
-		assert.NoError(t,err)
-		r, err := registry.Get(result.Id)
+		result, err := handler.Create(cmd)
+		assert.NoError(t, err)
+		r, err := reservationsStore.Get(result.Id)
 
-		assert.NoError(t,err)
+		assert.NoError(t, err)
 		assert.True(t, result.SubjectId == subject.Id)
 		assert.True(t, result.UserId == user.Id)
 		assert.True(t, result.Start.Equal(futurePeriod[0]))
 		assert.True(t, result.End.Equal(futurePeriod[1]))
 		assert.Equal(t, result, r)
 		t.Cleanup(func() {
-			registry.Remove(result.Id)
+			reservationsStore.Remove(result.Id)
 		})
 	})
 
@@ -101,7 +99,7 @@ func TestCreateReservation(t *testing.T) {
 		r2 := createReservation(t, subject.Id, users[2].Id, futurePeriod[1].Add(-time.Minute*4), futurePeriod[1].Add(time.Minute))
 		cmd := application.CreateReservation{subject.Id, user.Id, futurePeriod[0], futurePeriod[1]}
 
-		_, err := handler.Handle(cmd)
+		_, err := handler.Create(cmd)
 
 		assertAlreadyReservedError(t, err, []int{r1.Id, r2.Id})
 	})
@@ -112,12 +110,82 @@ func TestCreateReservation(t *testing.T) {
 		createReservation(t, subjects[1].Id, users[1].Id, futurePeriod[0].Add(time.Minute), futurePeriod[1].Add(time.Minute))
 
 		cmd := application.CreateReservation{subject.Id, user.Id, futurePeriod[0], futurePeriod[1]}
-		reservation, err := handler.Handle(cmd)
+		reservation, err := handler.Create(cmd)
 		assert.NoError(t, err)
 		t.Cleanup(func() {
-			registry.Remove(reservation.Id)
+			reservationsStore.Remove(reservation.Id)
 		})
 	})
+}
+
+func TestRemoveReservation(t *testing.T) {
+	handler := getSUT()
+	subjects := createTestSubjects(subjectsStore, t)
+	users := createTestUsers(usersStore, t)
+
+	t.Run("it returns error if no reservation for subject exists", func(t *testing.T) {
+		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
+
+		err := handler.Remove(cmd)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("it removes all user reservations for subject", func(t *testing.T) {
+		createReservation(t, subjects[0].Id, users[0].Id, clock.TimeTravel(-10), clock.TimeTravel(5))
+		createReservation(t, subjects[0].Id, users[0].Id, clock.TimeTravel(5), clock.TimeTravel(10))
+		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
+
+		err := handler.Remove(cmd)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(reservationsStore.List()))
+	})
+
+	t.Run("it does not remove user's past reservations", func(t *testing.T) {
+		createReservation(t, subjects[0].Id, users[0].Id, clock.TimeTravel(-60), clock.TimeTravel(-30))
+		createReservation(t, subjects[0].Id, users[0].Id, clock.TimeTravel(-10), clock.TimeTravel(-5))
+		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
+
+		err := handler.Remove(cmd)
+
+		assert.Error(t, err)
+		assert.Equal(t, 2, len(reservationsStore.List()))
+	})
+
+	t.Run("it does not remove other users' reservations", func(t *testing.T) {
+		createReservation(t, subjects[0].Id, users[1].Id, clock.TimeTravel(5), clock.TimeTravel(10))
+		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
+
+		err := handler.Remove(cmd)
+
+		assert.Error(t, err)
+		assert.Equal(t, 1, len(reservationsStore.List()))
+	})
+
+	t.Run("it does not remove other user's subjects reservations", func(t *testing.T) {
+		createReservation(t, subjects[1].Id, users[0].Id, clock.TimeTravel(5), clock.TimeTravel(10))
+		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
+
+		err := handler.Remove(cmd)
+
+		assert.Error(t, err)
+		assert.Equal(t, 1, len(reservationsStore.List()))
+	})
+}
+
+func getSUT() *application.ReservationService {
+	subjectsStore = inmemory.NewSubjectsStore()
+	usersStore = inmemory.NewUsersStore()
+	reservationsStore = inmemory.NewReservationStore()
+	clock = &FakeClock{}
+	clock.Set(time.Now())
+	return application.NewReservationService(
+		subjectsStore,
+		reservationsStore,
+		usersStore,
+		clock,
+	)
 }
 
 func createTestSubjects(store reservationsPort.SubjectsRepository, t *testing.T) reservations.Subjects {
@@ -136,7 +204,7 @@ func createTestSubjects(store reservationsPort.SubjectsRepository, t *testing.T)
 	return subjects
 }
 
-func createTestUsers(store users.UsersStore, t *testing.T) []users.User  {
+func createTestUsers(store users.UsersStore, t *testing.T) []users.User {
 	users := []users.User{
 		{Id: 1, Name: "Test 1"},
 		{Id: 2, Name: "Test 2"},
@@ -155,17 +223,17 @@ func createTestUsers(store users.UsersStore, t *testing.T) []users.User  {
 
 func createReservation(t *testing.T, subjectId int, userId int, start time.Time, end time.Time) reservations.Reservation {
 	r := reservations.Reservation{
-		Id: registry.NextIdentity(),
-		UserId: userId,
+		Id:        reservationsStore.NextIdentity(),
+		UserId:    userId,
 		SubjectId: subjectId,
-		Start: start,
-		End: end,
+		Start:     start,
+		End:       end,
 	}
-	err := registry.Add(r)
+	err := reservationsStore.Add(r)
 	assert.NoError(t, err)
 
 	t.Cleanup(func() {
-		registry.Remove(r.Id)
+		reservationsStore.Remove(r.Id)
 	})
 
 	return r

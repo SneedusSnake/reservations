@@ -101,6 +101,16 @@ func (d *TelegramDriver) UserRequestsReservationForSubject(user string, subject 
 	d.sendClientMessage(msg)
 }
 
+func (d *TelegramDriver) UserRequestsReservationRemoval(user string, subject string) {
+	msg := Message{
+		Id: d.messageId,
+		Text: "/remove " + subject,
+		From: User{Id: d.getUserId(user), FirstName: user},
+	}
+
+	d.sendClientMessage(msg)
+}
+
 func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
 	msg := d.getLastBotResponse()
 

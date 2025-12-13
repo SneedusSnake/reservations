@@ -128,3 +128,15 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 
 	return fmt.Sprintf("Reservation for %s acquired by %s until %s", subject.Name, user.Name, r.End.Format(time.DateTime)), nil
 }
+
+func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
+	ta.log.Println("Handling create reservation command")
+	args := strings.SplitN(update.Message.Text, " ", 2)
+	subject, err := ta.subjectService.List().Find(args[1])
+
+	if err != nil {
+		return "", err
+	}
+
+	return subject.Name, nil
+}

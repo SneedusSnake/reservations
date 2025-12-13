@@ -28,7 +28,7 @@ func (e AlreadyReservedError) Error() string {
 
 type ReservationService struct {
 	subjectsStore reservationsPort.SubjectsRepository
-	reservationsRegistry reservationsPort.ReservationsRepository
+	reservationsStore reservationsPort.ReservationsRepository
 	usersStore usersPort.UsersRepository
 	clock ports.Clock
 }
@@ -41,7 +41,7 @@ func NewReservationService(
 ) *ReservationService {
 	return &ReservationService{
 		subjectsStore: subjStore,
-		reservationsRegistry: registry,
+		reservationsStore: registry,
 		usersStore: usersStore,
 		clock: clock,
 	}
@@ -64,7 +64,7 @@ func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reserva
 		return reservations.Reservation{}, errors.New("Attempt to make a reservation in the past")
 	}
 
-	activeReservations := s.reservationsRegistry.ForPeriod(cmd.From, cmd.To).ForSubject(cmd.SubjectId)
+	activeReservations := s.reservationsStore.ForPeriod(cmd.From, cmd.To).ForSubject(cmd.SubjectId)
 
 	if len(activeReservations) > 0 {
 		var ids []int
@@ -75,17 +75,37 @@ func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reserva
 	}
 
 	reservation := reservations.Reservation{
-		Id: s.reservationsRegistry.NextIdentity(),
+		Id: s.reservationsStore.NextIdentity(),
 		UserId: cmd.UserId,
 		SubjectId: cmd.SubjectId,
 		Start: cmd.From,
 		End: cmd.To,
 	}
-	s.reservationsRegistry.Add(reservation)
+	s.reservationsStore.Add(reservation)
 
 	return reservation, nil
 }
 
 func (s *ReservationService) Get(id int) (reservations.Reservation, error) {
-	return s.reservationsRegistry.Get(id)
+	return s.reservationsStore.Get(id)
+}
+
+type RemoveReservations struct {
+	UserId int
+	SubjectId int
+}
+
+func (s *ReservationService) Remove(cmd RemoveReservations) error {
+	//checking reservations for a year in advance will suffice for now
+	subjReservations := s.reservationsStore.ForPeriod(s.clock.Current(), s.clock.Current().Add(time.Hour*8760)).ForUser(cmd.UserId).ForSubject(cmd.SubjectId)
+
+	if len(subjReservations) == 0 {
+		return errors.New("No active reservations found")
+	}
+
+	for _, r := range subjReservations {
+		s.reservationsStore.Remove(r.Id)
+	}
+
+	return nil
 }

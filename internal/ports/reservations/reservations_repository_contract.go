@@ -9,30 +9,30 @@ import (
 )
 
 type ReservationsRepositoryContract struct {
-	NewRegistry func() ReservationsRepository
+	NewRepository func() ReservationsRepository
 }
 
 func (r ReservationsRepositoryContract) Test (t *testing.T) {
 	t.Run("it returns error when the reservation was not found", func (t *testing.T) {
-		registry := r.NewRegistry()
-		_, err := registry.Get(1234567)
+		store := r.NewRepository()
+		_, err := store.Get(1234567)
 
 		if err == nil {
 			t.Error("expected to see error, got nil")
 		}
 	})
 
-	t.Run("it adds a new reservation into the registry", func (t *testing.T) {
-		registry := r.NewRegistry()
+	t.Run("it adds a new reservation into the store", func (t *testing.T) {
+		store := r.NewRepository()
 		reservation := domain.Reservation{Id: 1,UserId: 2,SubjectId: 3, Start: time.Now(), End: time.Now()}
 
-		err := registry.Add(reservation)
+		err := store.Add(reservation)
 
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		foundReservation, err := registry.Get(reservation.Id)
+		foundReservation, err := store.Get(reservation.Id)
 
 		if err != nil {
 			t.Fatal(err)
@@ -43,30 +43,30 @@ func (r ReservationsRepositoryContract) Test (t *testing.T) {
 		}
 	})
 
-	t.Run("it removes reservation from the registry", func (t *testing.T) {
-		registry := r.NewRegistry()
+	t.Run("it removes reservation from the store", func (t *testing.T) {
+		store := r.NewRepository()
 		reservation := domain.Reservation{Id: 1,UserId: 2,SubjectId: 3, Start: time.Now(), End: time.Now()}
-		err := registry.Add(reservation)
+		err := store.Add(reservation)
 
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = registry.Remove(reservation.Id)
+		err = store.Remove(reservation.Id)
 
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = registry.Get(reservation.Id)
+		_, err = store.Get(reservation.Id)
 
 		if err == nil {
-			t.Error("Expected reservation to be removed from the registry")
+			t.Error("Expected reservation to be removed from the store")
 		}
 	})
 
 	t.Run("it fetches reservations active during given period", func (t *testing.T) {
-		registry := r.NewRegistry()
+		store := r.NewRepository()
 		from := time.Now()
 		to := time.Now().Add(time.Hour*1)
 		
@@ -89,13 +89,13 @@ func (r ReservationsRepositoryContract) Test (t *testing.T) {
 		all = append(all, futureReservations...)
 
 		for _, reservation := range all {
-			err := registry.Add(reservation)
+			err := store.Add(reservation)
 			if err != nil {
 				t.Fatal(err)
 			}
 		}
 
-		reservations := registry.ForPeriod(from, to)
+		reservations := store.ForPeriod(from, to)
 		
 		if len(reservations) != len(activeReservations) {
 			t.Errorf("Expected %d active reservations, got %d", len(activeReservations), len(reservations))
@@ -103,13 +103,13 @@ func (r ReservationsRepositoryContract) Test (t *testing.T) {
 	})
 
 	t.Run("it generates next ID", func(t *testing.T) {
-		registry := r.NewRegistry()
+		store := r.NewRepository()
 		ch := make(chan int, 5)
 		var ids []int
 
 		for range 5 {
 			go (func (c chan int) {
-				c <- registry.NextIdentity()
+				c <- store.NextIdentity()
 			})(ch)
 		}
 		

@@ -8,7 +8,7 @@ import (
 
 func TestInMemoryReservationsStore(t *testing.T) {
 	contract := reservations.ReservationsRepositoryContract{
-		NewRegistry:  func() reservations.ReservationsRepository {
+		NewRepository:  func() reservations.ReservationsRepository {
 			return inmemory.NewReservationStore();
 		},
 	}

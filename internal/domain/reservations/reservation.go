@@ -26,3 +26,15 @@ func (r Reservations) ForSubject(subjectId int) Reservations {
 	return filtered
 }
 
+func (r Reservations) ForUser(userId int) Reservations {
+	var filtered Reservations
+
+	for _, reservation := range r {
+		if reservation.UserId == userId {
+			filtered = append(filtered, reservation)
+		}
+	}
+
+	return filtered
+}
+

@@ -7,6 +7,7 @@ type Reservations interface{
 	UserRequestsSubjectsList()
 	UserRequestsSubjectTags(subject string)
 	UserRequestsReservationForSubject(user string, subject string, minutes int)
+	UserRequestsReservationRemoval(user string, subject string)
 
 	UserSeesSubjects(subject ...string)
 	UserSeesSubjectTags(tags ...string)
