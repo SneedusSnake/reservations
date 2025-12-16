@@ -75,6 +75,10 @@ func TestSuite(t *testing.T) {
 	t.Run("User can remove reservations for a subject", func(t *testing.T) {
 		specifications.RemoveReservationSpecification(t, driver)
 	})
+
+	t.Run("User can see list of all reservations", func(t *testing.T) {
+		specifications.ListReservedSubjects(t, driver)
+	})
 }
 
 func bootApplication(t *testing.T) *TestApplication {

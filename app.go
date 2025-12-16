@@ -22,6 +22,7 @@ const (
 	STORE_USERS        = "users_store"
 	STORE_TG_USERS     = "tg_users_store"
 	STORE_RESERVATIONS = "reservations_store"
+	STORE_READ_RESERVATIONS = "reservations_read_store"
 
 	SERVICE_SUBJECT = "subject_service"
 	SERVICE_USER = "user_service"
@@ -88,10 +89,12 @@ func (app *App) registerDependencies() {
 	usersStore := inmemory.NewUsersStore()
 	tgUsersStore := inmemory.NewTelegramUsersStore(usersStore)
 	reservationsStore := inmemory.NewReservationStore()
+	reservationsReadStore := inmemory.NewReservationReadStore(reservationsStore, usersStore, subjectsStore)
 
 	reservationService := application.NewReservationService(
 		subjectsStore,
 		reservationsStore,
+		reservationsReadStore,
 		usersStore,
 		clock,
 	)
@@ -105,6 +108,7 @@ func (app *App) registerDependencies() {
 	app.container[STORE_USERS] = usersStore
 	app.container[STORE_TG_USERS] = tgUsersStore
 	app.container[STORE_RESERVATIONS] = reservationsStore
+	app.container[STORE_READ_RESERVATIONS] = reservationsReadStore
 	app.container[CLOCK] = clock
 
 	app.container[SERVICE_RESERVATION] = reservationService
@@ -145,6 +149,7 @@ func (app *App) registerTelegramBotHandlers() {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/add_tags", bot.MatchTypePrefix, botHandlerFunc(adapter.AddSubjectTagsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/list", bot.MatchTypeExact, botHandlerFunc(adapter.ListSubjectsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/tags", bot.MatchTypePrefix, botHandlerFunc(adapter.ListSubjectTagsHandler))
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserved", bot.MatchTypePrefix, botHandlerFunc(adapter.ActiveReservationsHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/reserve", bot.MatchTypePrefix, botHandlerFunc(adapter.CreateReservationHandler))
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/remove", bot.MatchTypePrefix, botHandlerFunc(adapter.RemoveReservationHandler))
 }

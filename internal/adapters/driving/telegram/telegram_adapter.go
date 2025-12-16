@@ -152,3 +152,19 @@ func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.
 
 	return subject.Name, nil
 }
+
+func (ta *telegramAdapter) ActiveReservationsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
+	ta.log.Println("Handling active reservations command")
+	list, err := ta.reservationsService.ActiveReservations(ta.clock.Current())
+
+	if err != nil {
+		return "", err
+	}
+
+	text := "Subject\tReserved Until\t\tUser\n"
+	for _, reservation := range list {
+		text += fmt.Sprintf("%s\t%s\t\t%s\n", reservation.Subject, reservation.End.Format(time.DateTime), reservation.User)
+	}
+
+	return text, nil
+}

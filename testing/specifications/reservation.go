@@ -25,3 +25,13 @@ func RemoveReservationSpecification(t testing.TB, driver drivers.Reservations) {
 	driver.UserRequestsReservationForSubject("Bob", "Subject#2", 30)
 	driver.UserAcquiredReservationForSubject("Bob", "Subject#2", "13:30")
 }
+
+func ListReservedSubjects(t testing.TB, driver drivers.Reservations) {
+	driver.ClockSet("14:00")
+	driver.UserRequestsReservationForSubject("Alice", "Subject#1", 5)
+	driver.UserRequestsReservationForSubject("Bob", "Subject#3", 10)
+
+	driver.UserRequestsReservationsList()
+
+	driver.UserSeesReservations("Alice Subject#1 14:05", "Bob Subject#3 14:10")
+}

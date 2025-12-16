@@ -31,6 +31,12 @@ type User struct {
 	FirstName string `json:"first_name"`
 }
 
+type Reservation struct {
+	User string
+	Subject string
+	Time time.Time
+}
+
 type TelegramDriver struct {
 	client *http.Client
 	host string
@@ -111,6 +117,15 @@ func (d *TelegramDriver) UserRequestsReservationRemoval(user string, subject str
 	d.sendClientMessage(msg)
 }
 
+func (d *TelegramDriver) UserRequestsReservationsList() {
+	msg := Message{
+		Id: d.messageId,
+		Text: "/reserved",
+	}
+
+	d.sendClientMessage(msg)
+}
+
 func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
 	msg := d.getLastBotResponse()
 
@@ -126,6 +141,16 @@ func (d *TelegramDriver) UserSeesSubjectTags(tags ...string) {
 	recievedTags := strings.Split(msg, "\n")
 	for _, tag := range tags {
 		assert.SliceContains(d.t, recievedTags, tag)
+	}
+}
+
+func (d *TelegramDriver) UserSeesReservations(reservations ...string) {
+	msg := d.getLastBotResponse()
+
+	listReservations := d.reservationsFromList(msg)
+	assert.Equal(d.t, len(reservations), len(listReservations))
+	for _, r := range reservations {
+		assert.SliceContains(d.t, listReservations, d.reservationFromSpec(r))
 	}
 }
 
@@ -203,4 +228,55 @@ func (d *TelegramDriver) getUserId(name string) int {
 	}
 
 	return id
+}
+
+func (d *TelegramDriver) reservationsFromList(list string) []Reservation {
+	var reservations []Reservation
+	lines := strings.Split(strings.Trim(list, "\n"), "\n")
+	
+	for _, line := range lines[1:] {
+		reservations = append(reservations, d.reservationFromList(line))
+	}
+
+	return reservations
+}
+
+func (d *TelegramDriver) reservationFromList(r string) Reservation {
+	data := strings.Split(r, "\t")
+	assert.Equal(d.t, 4, len(data))
+	t, err := time.Parse(time.DateTime, data[1])
+	assert.NoError(d.t, err)
+	
+	return Reservation{
+		Subject: data[0],
+		User: data[3],
+		Time: t,
+	}
+}
+
+func (d *TelegramDriver) reservationFromSpec(r string) Reservation {
+	data := strings.Split(r, " ")
+	assert.Equal(d.t, 3, len(data))
+	specTime := strings.Split(data[2], ":")
+	assert.Equal(d.t, 2, len(specTime))
+	hours, err := strconv.Atoi(specTime[0])
+	assert.NoError(d.t, err)
+	minutes, err := strconv.Atoi(specTime[1])
+	assert.NoError(d.t, err)
+	t := time.Date(
+		d.clock.Current().Year(),
+		d.clock.Current().Month(),
+		d.clock.Current().Day(),
+		hours,
+		minutes,
+		d.clock.Current().Second(),
+		d.clock.Current().Nanosecond(),
+		d.clock.Current().Location(),
+	)
+	
+	return Reservation{
+		Subject: data[1],
+		User: data[0],
+		Time: t,
+	}
 }

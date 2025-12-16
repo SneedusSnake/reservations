@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SneedusSnake/Reservations/internal/ports"
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
-	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
+	"github.com/SneedusSnake/Reservations/internal/ports"
 	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
+	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
+	readmodel "github.com/SneedusSnake/Reservations/internal/read_model"
 )
 
 type CreateReservation struct {
@@ -29,6 +30,7 @@ func (e AlreadyReservedError) Error() string {
 type ReservationService struct {
 	subjectsStore reservationsPort.SubjectsRepository
 	reservationsStore reservationsPort.ReservationsRepository
+	reservationsReadStore reservationsPort.ReservationsReadRepository
 	usersStore usersPort.UsersRepository
 	clock ports.Clock
 }
@@ -36,12 +38,14 @@ type ReservationService struct {
 func NewReservationService(
 	subjStore reservationsPort.SubjectsRepository,
 	registry reservationsPort.ReservationsRepository,
+	reservationsReadStore reservationsPort.ReservationsReadRepository,
 	usersStore usersPort.UsersRepository,
 	clock ports.Clock,
 ) *ReservationService {
 	return &ReservationService{
 		subjectsStore: subjStore,
 		reservationsStore: registry,
+		reservationsReadStore: reservationsReadStore,
 		usersStore: usersStore,
 		clock: clock,
 	}
@@ -108,4 +112,8 @@ func (s *ReservationService) Remove(cmd RemoveReservations) error {
 	}
 
 	return nil
+}
+
+func (s *ReservationService) ActiveReservations(t time.Time) ([]readmodel.Reservation, error) {
+	return s.reservationsReadStore.Active(t)
 }

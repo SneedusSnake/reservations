@@ -1,0 +1,67 @@
+package inmemory
+
+import (
+	"time"
+
+	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
+	reservationPorts "github.com/SneedusSnake/Reservations/internal/ports/reservations"
+	userPorts "github.com/SneedusSnake/Reservations/internal/ports/users"
+	readmodel "github.com/SneedusSnake/Reservations/internal/read_model"
+)
+
+type ReservationsReadStore struct {
+	reservationsStore reservationPorts.ReservationsRepository
+	users        userPorts.UsersRepository
+	subjects 	reservationPorts.SubjectsRepository
+}
+
+func NewReservationReadStore(reservationsStore *ReservationsStore, users *UsersStore, subjects *SubjectsStore) *ReservationsReadStore {
+	return &ReservationsReadStore{
+		reservationsStore: reservationsStore,
+		users: users,
+		subjects: subjects,
+	}
+}
+
+func (r *ReservationsReadStore) Get(id int) (readmodel.Reservation, error) {
+	reservation, err := r.reservationsStore.Get(id)
+
+	if err != nil {
+		return readmodel.Reservation{}, err
+	}
+	result, err := r.make(reservation)
+	if err != nil {
+		return readmodel.Reservation{}, err
+	}
+
+	return result, nil
+}
+
+func (r *ReservationsReadStore) Active(t time.Time) ([]readmodel.Reservation, error) {
+	var result []readmodel.Reservation
+	for _, reservation := range r.reservationsStore.List() {
+		model, err := r.make(reservation)
+		if err != nil {
+			return []readmodel.Reservation{}, err
+		}
+
+		if (!reservation.End.Before(t)) {
+			result = append(result, model)
+		}
+	}
+	return result, nil
+}
+
+func (r *ReservationsReadStore) make(reservation reservations.Reservation) (readmodel.Reservation, error) {
+	user, err := r.users.Get(reservation.UserId)
+	if err != nil {
+		return readmodel.Reservation{}, err
+	}
+
+	subject, err := r.subjects.Get(reservation.SubjectId)
+	if err != nil {
+		return readmodel.Reservation{}, err
+	}
+
+	return readmodel.Reservation{Id: reservation.Id, Subject: subject.Name, User: user.Name, Start: reservation.Start, End: reservation.End}, nil
+}
