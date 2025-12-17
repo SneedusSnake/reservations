@@ -37,6 +37,11 @@ type Reservation struct {
 	Time time.Time
 }
 
+type Response struct {
+	ChatId int `json:"chat_id"`
+	Text string `json:"text"`
+}
+
 type TelegramDriver struct {
 	client *http.Client
 	host string
@@ -46,6 +51,7 @@ type TelegramDriver struct {
 	clock cache.CacheClock
 	users map[string]int
 	appContainer testcontainers.Container
+	responses []Response
 	t *testing.T
 }
 
@@ -59,6 +65,7 @@ func NewDriver(client *http.Client, host string,clock cache.CacheClock, app test
 		clock,
 		make(map[string]int),
 		app,
+		[]Response{},
 		t,
 	}
 }
@@ -117,10 +124,14 @@ func (d *TelegramDriver) UserRequestsReservationRemoval(user string, subject str
 	d.sendClientMessage(msg)
 }
 
-func (d *TelegramDriver) UserRequestsReservationsList() {
+func (d *TelegramDriver) UserRequestsReservationsList(tags ...string) {
 	msg := Message{
 		Id: d.messageId,
 		Text: "/reserved",
+	}
+
+	if len(tags) > 0 {
+		msg.Text += " " + strings.Join(tags, " ")
 	}
 
 	d.sendClientMessage(msg)
@@ -154,6 +165,20 @@ func (d *TelegramDriver) UserSeesReservations(reservations ...string) {
 	}
 }
 
+func (d *TelegramDriver) UserDoesNotSeeReservations(subject string) {
+	msg := d.getLastBotResponse()
+	seen := false
+
+	listReservations := d.reservationsFromList(msg)
+	for _, r := range listReservations {
+		if r.Subject == subject {
+			seen = true
+		}
+	}
+
+	assert.False(d.t, seen)
+}
+
 func (d *TelegramDriver) UserAcquiredReservationForSubject(user string, subject string, until string) {
 	msg := d.getLastBotResponse()
 
@@ -184,6 +209,11 @@ func (d *TelegramDriver) ClockSet(t string) {
 	d.appContainer.CopyFileToContainer(d.t.Context(), d.clock.Path(), d.clock.Path(), 0o666)
 }
 
+func (d *TelegramDriver) CleanUp() {
+	d.responses = []Response{}
+	d.messageId = 0
+}
+
 func (d *TelegramDriver) sendClientMessage(msg Message) {
 	d.messageId++
 	msg.Id = d.messageId
@@ -196,10 +226,7 @@ func (d *TelegramDriver) sendClientMessage(msg Message) {
 }
 
 func (d *TelegramDriver) getLastBotResponse() string {
-	var responseData []struct{
-		ChatId int `json:"chat_id"`
-		Text string `json:"text"`
-	}
+	var responseData []Response
 
 	for range 5 {
 		r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
@@ -209,10 +236,13 @@ func (d *TelegramDriver) getLastBotResponse() string {
 		assert.NoError(d.t, err)
 		err = json.Unmarshal(body, &responseData)
 		assert.NoError(d.t, err)
+		for _, response := range responseData {
+			d.responses = append(d.responses, response)
+		}
 	}
 
-	assert.NotEqual(d.t, 0, len(responseData))
-	botMessage := responseData[len(responseData) - 1]
+	assert.NotEqual(d.t, 0, len(d.responses))
+	botMessage := d.responses[len(d.responses) - 1]
 	assert.Equal(d.t, d.chatId, botMessage.ChatId)
 
 	return botMessage.Text

@@ -59,25 +59,33 @@ func TestSuite(t *testing.T) {
 	)
 
 	prepareTestFixtures(driver)
+	cleanUp := func () {
+		driver.CleanUp()
+	}
 
 	t.Run("User can see list of all existing subjects", func(t *testing.T) {
 		specifications.ListSpecification(t, driver)
+		t.Cleanup(cleanUp)
 	})
 
 	t.Run("User can see list of all tags attached to a subject", func(t *testing.T) {
 		specifications.SubjectTagsSpecification(t, driver)
+		t.Cleanup(cleanUp)
 	})
 
 	t.Run("User can make a reservation for a subject", func(t *testing.T) {
 		specifications.ReserveSubjectSpecification(t, driver)
+		t.Cleanup(cleanUp)
 	})
 
 	t.Run("User can remove reservations for a subject", func(t *testing.T) {
 		specifications.RemoveReservationSpecification(t, driver)
+		t.Cleanup(cleanUp)
 	})
 
 	t.Run("User can see list of all reservations", func(t *testing.T) {
 		specifications.ListReservedSubjects(t, driver)
+		t.Cleanup(cleanUp)
 	})
 }
 

@@ -114,6 +114,6 @@ func (s *ReservationService) Remove(cmd RemoveReservations) error {
 	return nil
 }
 
-func (s *ReservationService) ActiveReservations(t time.Time) ([]readmodel.Reservation, error) {
-	return s.reservationsReadStore.Active(t)
+func (s *ReservationService) ActiveReservations(t time.Time, tags ...string) ([]readmodel.Reservation, error) {
+	return s.reservationsReadStore.Active(t, tags...)
 }

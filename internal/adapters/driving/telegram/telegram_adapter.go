@@ -155,7 +155,12 @@ func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.
 
 func (ta *telegramAdapter) ActiveReservationsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling active reservations command")
-	list, err := ta.reservationsService.ActiveReservations(ta.clock.Current())
+	var tags []string
+	args := strings.SplitN(update.Message.Text, " ", 2)
+	if len(args) == 2 {
+		tags = strings.Split(args[1], " ")
+	}
+	list, err := ta.reservationsService.ActiveReservations(ta.clock.Current(), tags...)
 
 	if err != nil {
 		return "", err
