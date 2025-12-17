@@ -2,7 +2,10 @@ package inmemory
 
 import (
 	"fmt"
+	"slices"
+	"sync"
 	"time"
+
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 )
 
@@ -10,6 +13,7 @@ type ReservationsStore struct
 {
 	counter int
 	reservations reservations.Reservations
+	mu sync.Mutex
 }
 
 func NewReservationStore() *ReservationsStore {
@@ -17,13 +21,15 @@ func NewReservationStore() *ReservationsStore {
 }
 
 func (r *ReservationsStore) NextIdentity() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.counter++
 
 	return r.counter
 }
 
 func (r *ReservationsStore) List() reservations.Reservations {
-	return r.reservations
+	return slices.Clone(r.reservations)
 }
 
 func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) reservations.Reservations {
@@ -43,6 +49,8 @@ func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) reservations
 }
 
 func (r *ReservationsStore) Add(reservation reservations.Reservation) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.reservations = append(r.reservations, reservation)
 
 	return nil
@@ -59,7 +67,8 @@ func (r *ReservationsStore) Get(id int) (reservations.Reservation, error) {
 }
 
 func (r *ReservationsStore) Remove(id int) error {
-
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	for index, reservation := range r.reservations {
 		if (reservation.Id == id) {
 			r.reservations = append(r.reservations[:index], r.reservations[index+1:]...)

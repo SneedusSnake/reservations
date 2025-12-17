@@ -17,7 +17,7 @@ type ReservationsRepository interface {
 
 type ReservationsReadRepository interface {
 	Get(id int) (readmodel.Reservation, error)
-	Active(time.Time) ([]readmodel.Reservation, error)
+	Active(t time.Time, tags ...string) ([]readmodel.Reservation, error)
 }
 
 

@@ -35,3 +35,15 @@ func ListReservedSubjects(t testing.TB, driver drivers.Reservations) {
 
 	driver.UserSeesReservations("Alice Subject#1 14:05", "Bob Subject#3 14:10")
 }
+
+func ListReservedSubjectsFilteredByTags(t testing.TB, driver drivers.Reservations) {
+	driver.ClockSet("15:00")
+	driver.UserRequestsReservationForSubject("Alice", "Subject#1", 5)
+	driver.UserRequestsReservationForSubject("Alice", "Subject#2", 5)
+	driver.UserRequestsReservationForSubject("Bob", "Subject#3", 5)
+
+	driver.UserRequestsReservationsList("Subject#1", "Subject#3")
+
+	driver.UserSeesReservations("Alice Subject#1 15:05", "Bob Subject#3 15:05")
+	driver.UserDoesNotSeeReservations("Subject#2")
+}

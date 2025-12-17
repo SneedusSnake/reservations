@@ -1,6 +1,7 @@
 package inmemory
 
 import (
+	"slices"
 	"time"
 
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
@@ -37,9 +38,15 @@ func (r *ReservationsReadStore) Get(id int) (readmodel.Reservation, error) {
 	return result, nil
 }
 
-func (r *ReservationsReadStore) Active(t time.Time) ([]readmodel.Reservation, error) {
+func (r *ReservationsReadStore) Active(t time.Time, tags ...string) ([]readmodel.Reservation, error) {
 	var result []readmodel.Reservation
-	for _, reservation := range r.reservationsStore.List() {
+	list := r.reservationsStore.List()
+	if len(tags) > 0 {
+		filterSubjects := r.subjects.GetByTags(tags)
+		list = filterBySubjects(list, filterSubjects)
+	}
+
+	for _, reservation := range list {
 		model, err := r.make(reservation)
 		if err != nil {
 			return []readmodel.Reservation{}, err
@@ -64,4 +71,21 @@ func (r *ReservationsReadStore) make(reservation reservations.Reservation) (read
 	}
 
 	return readmodel.Reservation{Id: reservation.Id, Subject: subject.Name, User: user.Name, Start: reservation.Start, End: reservation.End}, nil
+}
+
+func filterBySubjects(rs reservations.Reservations, subjects reservations.Subjects) reservations.Reservations {
+	var subjectIds []int
+	var filtered reservations.Reservations
+
+	for _, subject := range subjects {
+		subjectIds = append(subjectIds, subject.Id)
+	}
+
+	for _, r := range rs {
+		if slices.Contains(subjectIds, r.SubjectId) {
+			filtered = append(filtered, r)
+		}
+	}
+
+	return filtered
 }

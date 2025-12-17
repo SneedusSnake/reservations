@@ -6,7 +6,7 @@ type Reservations interface{
 	
 	UserRequestsSubjectsList()
 	UserRequestsSubjectTags(subject string)
-	UserRequestsReservationsList()
+	UserRequestsReservationsList(tags ...string)
 	UserRequestsReservationForSubject(user string, subject string, minutes int)
 	UserRequestsReservationRemoval(user string, subject string)
 
@@ -14,6 +14,7 @@ type Reservations interface{
 	UserSeesSubjectTags(tags ...string)
 	UserAcquiredReservationForSubject(user string, subject string, until string)
 	UserSeesReservations(reservations ...string)
+	UserDoesNotSeeReservations(subject string)
 	SubjectHasAlreadyBeenReservedBy(user string, until string)
 
 	ClockSet(time string)

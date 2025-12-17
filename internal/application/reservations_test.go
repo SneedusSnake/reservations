@@ -9,7 +9,6 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/domain/users"
 	reservationsPort "github.com/SneedusSnake/Reservations/internal/ports/reservations"
-	usersPort "github.com/SneedusSnake/Reservations/internal/ports/users"
 	"github.com/alecthomas/assert/v2"
 )
 
@@ -29,9 +28,9 @@ func (c *FakeClock) TimeTravel(minutes int) time.Time {
 	return c.Current().Add(time.Minute*time.Duration(minutes))
 }
 
-var subjectsStore reservationsPort.SubjectsRepository
-var reservationsStore reservationsPort.ReservationsRepository
-var usersStore usersPort.UsersRepository
+var subjectsStore *inmemory.SubjectsStore
+var reservationsStore *inmemory.ReservationsStore
+var usersStore *inmemory.UsersStore
 var clock *FakeClock
 
 func TestCreateReservation(t *testing.T) {
@@ -183,6 +182,7 @@ func getSUT() *application.ReservationService {
 	return application.NewReservationService(
 		subjectsStore,
 		reservationsStore,
+		inmemory.NewReservationReadStore(reservationsStore, usersStore, subjectsStore),
 		usersStore,
 		clock,
 	)
