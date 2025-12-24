@@ -1,0 +1,9 @@
+-- +goose Up
+CREATE TABLE IF NOT EXISTS subject_tags(
+    subject_id INTEGER NOT NULL,
+    tag VARCHAR(255) NOT NULL,
+    PRIMARY KEY(subject_id, tag)
+);
+
+-- +goose Down
+DROP subject_tags;
