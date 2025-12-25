@@ -2,7 +2,7 @@ package specifications
 
 import (
 	"testing"
-	"github.com/SneedusSnake/Reservations/testing/drivers"
+	"github.com/SneedusSnake/Reservations/testing/acceptance/drivers"
 )
 
 func SubjectTagsSpecification(t testing.TB, driver drivers.Reservations) {

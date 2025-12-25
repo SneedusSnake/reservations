@@ -1,4 +1,4 @@
-package cmd
+package acceptance
 
 import (
 	"context"
@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
-	"github.com/SneedusSnake/Reservations/testing/drivers"
-	"github.com/SneedusSnake/Reservations/testing/drivers/telegram"
-	"github.com/SneedusSnake/Reservations/testing/specifications"
+	"github.com/SneedusSnake/Reservations/testing/acceptance/drivers"
+	"github.com/SneedusSnake/Reservations/testing/acceptance/drivers/telegram"
+	"github.com/SneedusSnake/Reservations/testing/acceptance/specifications"
+	"github.com/SneedusSnake/Reservations/testing/containers/app"
+	"github.com/SneedusSnake/Reservations/testing/containers/telegram_api"
 	"github.com/alecthomas/assert/v2"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const CLOCK_CACHE_PATH = "/tmp/clock_go"
 
 type StdoutLogConsumer struct{
 	Container string
@@ -53,7 +53,7 @@ func TestSuite(t *testing.T) {
 	driver := telegram.NewDriver(
 		http.DefaultClient,
 		telegramApiHost,
-		cache.NewClock(CLOCK_CACHE_PATH),
+		cache.NewClock(app.CLOCK_CACHE_PATH),
 		testApp.App,
 		t,
 	)
@@ -95,64 +95,16 @@ func bootApplication(t *testing.T) *TestApplication {
 	assert.NoError(t, err)
 
 	testApp := &TestApplication{Ctx: ctx, Network: net}
-	apiContainer, err := bootTelegramApiContainer(testApp)
+	apiContainer, err := telegram_api.Start(ctx, net.Name, &StdoutLogConsumer{Container: "Telegram test server"})
 	testcontainers.CleanupContainer(t, apiContainer)
 	assert.NoError(t, err)
-	appContainer, err := bootAppContainer(testApp)
+	appContainer, err := app.Start(ctx, net.Name, &StdoutLogConsumer{Container: "Application"})
 	testcontainers.CleanupContainer(t, appContainer)
 	assert.NoError(t, err)
 	testApp.TelegramApi = apiContainer
 	testApp.App = appContainer
 	
 	return testApp
-}
-
-func bootTelegramApiContainer(app *TestApplication) (testcontainers.Container, error) {
-	req := testcontainers.ContainerRequest{
-		FromDockerfile: testcontainers.FromDockerfile{
-			Context: "./server/telegram",
-			Dockerfile: "Dockerfile",
-			PrintBuildLog: true,
-		},
-		Env: map[string]string{"BOT_TOKEN": "1234567"},
-		Networks: []string{app.Network.Name},
-		NetworkAliases: map[string][]string{app.Network.Name: {"telegram-api"}},
-		ExposedPorts: []string{"8080"},
-		WaitingFor: wait.ForHTTP("/").WithPort("8080"),
-		LogConsumerCfg: &testcontainers.LogConsumerConfig{
-			Opts: []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10*time.Second)},
-			Consumers: []testcontainers.LogConsumer{&StdoutLogConsumer{Container: "Telegram test server"}},
-		},
-	}
-	 return testcontainers.GenericContainer(app.Ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started: true,
-	})
-}
-
-func bootAppContainer(app *TestApplication) (testcontainers.Container, error) {
-	req := testcontainers.ContainerRequest{
-		FromDockerfile: testcontainers.FromDockerfile{
-			Context: "../..",
-			Dockerfile: "./build/Docker/Dockerfile",
-			PrintBuildLog: true,
-		},
-		Env: map[string]string{
-			"TELEGRAM_API_HOST": "http://telegram-api:8080",
-			"TELEGRAM_API_TOKEN": "1234567",
-			"CLOCK_DRIVER": "cache",
-			"CACHE_CLOCK_PATH": CLOCK_CACHE_PATH,
-			},
-		Networks: []string{app.Network.Name},
-		LogConsumerCfg: &testcontainers.LogConsumerConfig{
-			Opts: []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10*time.Second)},
-			Consumers: []testcontainers.LogConsumer{&StdoutLogConsumer{Container: "Application"}},
-		},
-	}
-	 return testcontainers.GenericContainer(app.Ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started: true,
-	})
 }
 
 func prepareTestFixtures(driver drivers.Reservations) {
