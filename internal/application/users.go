@@ -24,8 +24,13 @@ func (s *UserService) Get(id int) (users.User, error) {
 }
 
 func (s *UserService) Create(cmd CreateUser) (users.User, error) {
+	id, err := s.store.NextIdentity()
+	if err != nil {
+		return users.User{}, err
+	}
+
 	user := users.User{
-		Id: s.store.NextIdentity(),
+		Id: id,
 		Name: cmd.Name,
 		Email: cmd.Email,
 		Password: cmd.Password,

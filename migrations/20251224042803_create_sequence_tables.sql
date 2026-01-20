@@ -15,9 +15,7 @@ INSERT INTO user_seq VALUES (0);
 
 INSERT INTO subject_seq VALUES (0);
 
-
 INSERT INTO reservation_seq VALUES (0);
-
 
 -- +goose Down
 DROP TABLE user_seq;

@@ -15,9 +15,9 @@ func NewUsersStore() *UsersStore {
 	return &UsersStore{}
 }
 
-func (s *UsersStore) NextIdentity() int {
+func (s *UsersStore) NextIdentity() (int, error) {
 	s.counter++
-	return s.counter
+	return s.counter, nil
 }
 
 func (s *UsersStore) Add(u users.User) error {

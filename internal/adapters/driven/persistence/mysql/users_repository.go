@@ -8,21 +8,21 @@ import (
 
 type UsersRepository struct {
 	connection *sql.DB
+	sequence *sequence
 }
 
 func NewUsersRepository(connection *sql.DB) *UsersRepository {
-	return &UsersRepository{connection: connection}
+	return &UsersRepository{
+		connection: connection,
+		sequence: &sequence{
+			name: "user_seq",
+			connection: connection,
+		},
+	}
 }
 
-func (s *UsersRepository) NextIdentity() int {
-	var id int
-	s.connection.Exec("UPDATE user_seq SET value = LAST_INSERT_ID(value+1)")
-	row := s.connection.QueryRow("SELECT LAST_INSERT_ID() as id")
-	if err := row.Scan(&id); err != nil {
-		return 0
-	}
-
-	return id
+func (s *UsersRepository) NextIdentity() (int, error) {
+	return s.sequence.Next()
 }
 
 func (s *UsersRepository) Add(u users.User) error {

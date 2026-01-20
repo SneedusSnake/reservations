@@ -22,7 +22,6 @@ func (container *MysqlContainer) migrate() error {
 		return err
     }
 
-	//goose.SetTableName("public.goose_db_version")
 	goose.SetDialect("mysql")
 	return goose.Up(conn, utils.TestsRootDir() + "/../migrations")
 }

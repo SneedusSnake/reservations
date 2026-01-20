@@ -8,7 +8,7 @@ type User struct {
 }
 
 type UsersStore interface {
-	NextIdentity() int
+	NextIdentity() (int, error)
 	Add(u User) error
 	Get(id int) (User, error)
 	Remove(id int) error
