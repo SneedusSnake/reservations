@@ -2,7 +2,6 @@ package acceptance
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -11,21 +10,13 @@ import (
 	"github.com/SneedusSnake/Reservations/testing/acceptance/drivers"
 	"github.com/SneedusSnake/Reservations/testing/acceptance/drivers/telegram"
 	"github.com/SneedusSnake/Reservations/testing/acceptance/specifications"
+	"github.com/SneedusSnake/Reservations/testing/containers"
 	"github.com/SneedusSnake/Reservations/testing/containers/app"
 	"github.com/SneedusSnake/Reservations/testing/containers/telegram_api"
 	"github.com/alecthomas/assert/v2"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
 )
-
-
-type StdoutLogConsumer struct{
-	Container string
-}
-
-func (lc *StdoutLogConsumer) Accept(l testcontainers.Log) {
-	fmt.Printf("%s: %s\n", lc.Container, string(l.Content))
-}
 
 type TestApplication struct {
 	BotToken string
@@ -95,10 +86,11 @@ func bootApplication(t *testing.T) *TestApplication {
 	assert.NoError(t, err)
 
 	testApp := &TestApplication{Ctx: ctx, Network: net}
-	apiContainer, err := telegram_api.Start(ctx, net.Name, &StdoutLogConsumer{Container: "Telegram test server"})
+	
+	apiContainer, err := telegram_api.Start(ctx, net.Name, containers.Stdout("Telegram test server"))
 	testcontainers.CleanupContainer(t, apiContainer)
 	assert.NoError(t, err)
-	appContainer, err := app.Start(ctx, net.Name, &StdoutLogConsumer{Container: "Application"})
+	appContainer, err := app.Start(ctx, net.Name, containers.Stdout("Application"))
 	testcontainers.CleanupContainer(t, appContainer)
 	assert.NoError(t, err)
 	testApp.TelegramApi = apiContainer
