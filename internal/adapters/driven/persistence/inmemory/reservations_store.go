@@ -20,12 +20,12 @@ func NewReservationStore() *ReservationsStore {
 	return &ReservationsStore{}
 }
 
-func (r *ReservationsStore) NextIdentity() int {
+func (r *ReservationsStore) NextIdentity() (int, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.counter++
 
-	return r.counter
+	return r.counter, nil
 }
 
 func (r *ReservationsStore) List() reservations.Reservations {

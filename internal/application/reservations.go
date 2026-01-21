@@ -77,9 +77,13 @@ func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reserva
 		}
 		return reservations.Reservation{}, AlreadyReservedError{ReservationIds: ids}
 	}
+	id, err := s.reservationsStore.NextIdentity()
+	if err != nil {
+		return reservations.Reservation{}, err
+	}
 
 	reservation := reservations.Reservation{
-		Id: s.reservationsStore.NextIdentity(),
+		Id: id,
 		UserId: cmd.UserId,
 		SubjectId: cmd.SubjectId,
 		Start: cmd.From,

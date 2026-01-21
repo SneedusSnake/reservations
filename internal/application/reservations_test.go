@@ -222,14 +222,17 @@ func createTestUsers(store users.UsersStore, t *testing.T) []users.User {
 }
 
 func createReservation(t *testing.T, subjectId int, userId int, start time.Time, end time.Time) reservations.Reservation {
+	id, err := reservationsStore.NextIdentity()
+	assert.NoError(t, err)
+
 	r := reservations.Reservation{
-		Id:        reservationsStore.NextIdentity(),
+		Id:        id,
 		UserId:    userId,
 		SubjectId: subjectId,
 		Start:     start,
 		End:       end,
 	}
-	err := reservationsStore.Add(r)
+	err = reservationsStore.Add(r)
 	assert.NoError(t, err)
 
 	t.Cleanup(func() {
