@@ -14,11 +14,15 @@ func NewSubjectService(store reservationsPort.SubjectsRepository) *SubjectServic
 }
 
 func (h *SubjectService) Create(name string) (reservations.Subject, error) {
+	id, err := h.store.NextIdentity()
+	if err != nil {
+		return reservations.Subject{}, err
+	}
 	subject := reservations.Subject{
-		Id: h.store.NextIdentity(),
+		Id: id,
 		Name: name,
 	}
-	err := h.store.Add(subject)
+	err = h.store.Add(subject)
 
 	if err != nil {
 		return subject, err

@@ -158,7 +158,8 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 
 		for range 5 {
 			go (func (c chan int) {
-				c <- store.NextIdentity()
+				id, _ := store.NextIdentity()
+				c <- id
 			})(ch)
 		}
 		

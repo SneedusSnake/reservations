@@ -20,11 +20,12 @@ func NewSubjectsStore() *SubjectsStore {
 	return &SubjectsStore{counter: 0, subjects: reservations.Subjects{}, tags: make(map[string][]int)}
 }
 
-func (s *SubjectsStore) NextIdentity() int {
+func (s *SubjectsStore) NextIdentity() (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.counter++
-	return s.counter;
+
+	return s.counter, nil;
 }
 
 func (s *SubjectsStore) Add(subject reservations.Subject) error {
