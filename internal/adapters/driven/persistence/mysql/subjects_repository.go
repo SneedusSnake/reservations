@@ -31,11 +31,7 @@ func (s *SubjectsRepository) NextIdentity() (int, error) {
 func (s *SubjectsRepository) Add(subject reservations.Subject) error {
 	_, err := s.connection.Exec("INSERT INTO subjects(id, name) VALUES (?, ?)", subject.Id, subject.Name)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *SubjectsRepository) Get(id int) (reservations.Subject, error) {

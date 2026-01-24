@@ -68,11 +68,16 @@ func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reserva
 		return reservations.Reservation{}, errors.New("Attempt to make a reservation in the past")
 	}
 
-	activeReservations := s.reservationsStore.ForPeriod(cmd.From, cmd.To).ForSubject(cmd.SubjectId)
+	activeReservations, err := s.reservationsStore.ForPeriod(cmd.From, cmd.To)
 
-	if len(activeReservations) > 0 {
+	if err != nil {
+		return reservations.Reservation{}, err
+	}
+	subjectReservations := activeReservations.ForSubject(cmd.SubjectId)
+
+	if len(subjectReservations) > 0 {
 		var ids []int
-		for _, r := range activeReservations {
+		for _, r := range subjectReservations {
 			ids = append(ids, r.Id)
 		}
 		return reservations.Reservation{}, AlreadyReservedError{ReservationIds: ids}
@@ -105,7 +110,12 @@ type RemoveReservations struct {
 
 func (s *ReservationService) Remove(cmd RemoveReservations) error {
 	//checking reservations for a year in advance will suffice for now
-	subjReservations := s.reservationsStore.ForPeriod(s.clock.Current(), s.clock.Current().Add(time.Hour*8760)).ForUser(cmd.UserId).ForSubject(cmd.SubjectId)
+	activeReservations, err := s.reservationsStore.ForPeriod(s.clock.Current(), s.clock.Current().Add(time.Hour*8760))
+	if err != nil {
+		return err
+	}
+
+	subjReservations := activeReservations.ForUser(cmd.UserId).ForSubject(cmd.SubjectId)
 
 	if len(subjReservations) == 0 {
 		return errors.New("No active reservations found")

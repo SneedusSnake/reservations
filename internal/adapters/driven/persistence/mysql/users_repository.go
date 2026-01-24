@@ -28,11 +28,7 @@ func (s *UsersRepository) NextIdentity() (int, error) {
 func (s *UsersRepository) Add(u users.User) error {
 	_, err := s.connection.Exec("INSERT INTO users(id, name, email, password) VALUES (?, ?, ?, ?)", u.Id, u.Name, u.Email, u.Password)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *UsersRepository) Get(id int) (users.User, error) {
@@ -52,5 +48,7 @@ func (s *UsersRepository) Get(id int) (users.User, error) {
 }
 
 func (s *UsersRepository) Remove(id int) error {
-	return nil;
+	_, err := s.connection.Exec("DELETE FROM users WHERE id = ?", id)
+
+	return err
 }

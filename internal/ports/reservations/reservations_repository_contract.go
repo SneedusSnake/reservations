@@ -1,11 +1,14 @@
 package reservations
 
 import (
+	"math/rand/v2"
 	"slices"
 	"testing"
 	"time"
+
 	domain "github.com/SneedusSnake/Reservations/internal/domain/reservations"
 	"github.com/SneedusSnake/Reservations/internal/utils"
+	"github.com/alecthomas/assert/v2"
 )
 
 type ReservationsRepositoryContract struct {
@@ -24,81 +27,50 @@ func (r ReservationsRepositoryContract) Test (t *testing.T) {
 
 	t.Run("it adds a new reservation into the store", func (t *testing.T) {
 		store := r.NewRepository()
-		reservation := domain.Reservation{Id: 1,UserId: 2,SubjectId: 3, Start: time.Now(), End: time.Now()}
-
-		err := store.Add(reservation)
-
-		if err != nil {
-			t.Fatal(err)
-		}
+		reservation := builder(t, store).Persist()
 
 		foundReservation, err := store.Get(reservation.Id)
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if reservation != foundReservation {
-			t.Errorf("expected to see %#v got %#v", reservation, foundReservation)
-		}
+		assert.NoError(t, err)
+		assert.Equal(t, reservation, foundReservation)
 	})
 
 	t.Run("it removes reservation from the store", func (t *testing.T) {
 		store := r.NewRepository()
-		reservation := domain.Reservation{Id: 1,UserId: 2,SubjectId: 3, Start: time.Now(), End: time.Now()}
-		err := store.Add(reservation)
+		reservation := builder(t, store).Persist()
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		err = store.Remove(reservation.Id)
-
-		if err != nil {
-			t.Fatal(err)
-		}
+		err := store.Remove(reservation.Id)
+		assert.NoError(t, err)
 
 		_, err = store.Get(reservation.Id)
-
-		if err == nil {
-			t.Error("Expected reservation to be removed from the store")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("it fetches reservations active during given period", func (t *testing.T) {
 		store := r.NewRepository()
-		from := time.Now()
-		to := time.Now().Add(time.Hour*1)
+		from, err := time.Parse(time.DateTime, "2025-09-20 14:00:00")
+		assert.NoError(t, err)
+		to := from.Add(time.Hour*1)
+		blueprint := builder(t, store)
 		
-		expiredReservations := domain.Reservations{
-			domain.Reservation{Id: 1,UserId: 1,SubjectId: 1, Start: from.Add(-time.Hour*2), End: from.Add(-time.Second)},
-			domain.Reservation{Id: 2,UserId: 2,SubjectId: 2, Start: from.Add(-time.Hour*4), End: from.Add(-time.Hour)},
-		}
-		activeReservations := domain.Reservations{
-			domain.Reservation{Id: 3,UserId: 3,SubjectId: 3, Start: from.Add(-time.Hour*2), End: from.Add(time.Second)},
-			domain.Reservation{Id: 4,UserId: 4,SubjectId: 4, Start: from, End: to},
-			domain.Reservation{Id: 5,UserId: 5,SubjectId: 5, Start: from.Add(time.Second), End: to.Add(-time.Second)},
-			domain.Reservation{Id: 6,UserId: 6,SubjectId: 6, Start: to.Add(-time.Second), End: to.Add(time.Minute*20)},
-		}
-		futureReservations := domain.Reservations{
-			domain.Reservation{Id: 7,UserId: 7,SubjectId: 7, Start: to.Add(time.Second), End: to.Add(time.Hour)},
-		}
-		all := domain.Reservations{}
-		all = append(all, expiredReservations...)
-		all = append(all, activeReservations...)
-		all = append(all, futureReservations...)
+		//expired reservations relative to given period
+		blueprint.StartsAt(from.Add(-time.Hour*2)).EndsAt(from.Add(-time.Second)).Persist()
+		blueprint.StartsAt(from.Add(-time.Hour*4)).EndsAt(from.Add(-time.Hour)).Persist()
 
-		for _, reservation := range all {
-			err := store.Add(reservation)
-			if err != nil {
-				t.Fatal(err)
-			}
+		expectedReservations := domain.Reservations{
+			blueprint.StartsAt(from.Add(-time.Hour*2)).EndsAt(from.Add(time.Second)).Persist(),
+			blueprint.StartsAt(from).EndsAt(to).Persist(),
+			blueprint.StartsAt(from.Add(time.Second)).EndsAt(to.Add(-time.Second)).Persist(),
+			blueprint.StartsAt(to.Add(-time.Second)).EndsAt(to.Add(time.Minute*20)).Persist(),
 		}
+		//future reservations relative to given period
+		blueprint.StartsAt(to.Add(time.Second)).EndsAt(to.Add(time.Hour)).Persist()
 
-		reservations := store.ForPeriod(from, to)
-		
-		if len(reservations) != len(activeReservations) {
-			t.Errorf("Expected %d active reservations, got %d", len(activeReservations), len(reservations))
+		reservations, err := store.ForPeriod(from, to)
+		assert.NoError(t, err)
+		assert.Equal(t, len(reservations), len(expectedReservations))
+
+		for _, r := range reservations {
+			assert.SliceContains(t, expectedReservations, r)
 		}
 	})
 
@@ -126,4 +98,78 @@ func (r ReservationsRepositoryContract) Test (t *testing.T) {
 			t.Errorf("Generated identities %v contain duplicate values", ids)
 		}
 	})
+}
+
+type reservationBuilder struct {
+	t testing.TB
+	store ReservationsRepository
+	blueprint domain.Reservation
+}
+
+func (builder reservationBuilder) Make() domain.Reservation {
+	id, err := builder.store.NextIdentity()
+	assert.NoError(builder.t, err)
+	userId := builder.blueprint.UserId
+	subjectId := builder.blueprint.SubjectId
+	start := builder.blueprint.Start
+	end := builder.blueprint.End
+
+	if userId == 0 {
+		userId = rand.N(999999) + 1
+	}
+	
+	if subjectId == 0 {
+		subjectId = rand.N(9999) + 1
+	}
+
+	if start.IsZero() {
+		start = time.Now().UTC().Truncate(time.Second)
+	} 
+
+	if end.IsZero() {
+		end = time.Now().Add(time.Hour*2).UTC().Truncate(time.Second)
+	} 
+
+	return domain.Reservation{
+		Id: id,
+		UserId: userId,
+		SubjectId: subjectId,
+		Start: start,
+		End: end,
+	}
+}
+
+func (builder reservationBuilder) Persist() domain.Reservation {
+	result := builder.Make()
+	err := builder.store.Add(result)
+	assert.NoError(builder.t, err)
+	builder.t.Cleanup(func() {
+		builder.store.Remove(result.Id)
+	})
+
+	return result
+}
+
+func (builder reservationBuilder) StartsAt(t time.Time) reservationBuilder {
+	blueprint := builder.blueprint
+	blueprint.Start = t
+	builder.blueprint = blueprint
+
+	return builder
+}
+
+func (builder reservationBuilder) EndsAt(t time.Time) reservationBuilder {
+	blueprint := builder.blueprint
+	blueprint.End = t
+	builder.blueprint = blueprint
+
+	return builder
+}
+
+func builder(t testing.TB, store ReservationsRepository) reservationBuilder {
+	return reservationBuilder{
+		t: t,
+		store: store,
+		blueprint: domain.Reservation{},
+	}
 }

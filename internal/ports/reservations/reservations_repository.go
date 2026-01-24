@@ -12,7 +12,7 @@ type ReservationsRepository interface {
 	Add(reservation reservations.Reservation) error
 	Get(id int) (reservations.Reservation, error)
 	Remove(id int) error
-	ForPeriod(from time.Time, to time.Time) reservations.Reservations
+	ForPeriod(from time.Time, to time.Time) (reservations.Reservations, error)
 }
 
 type ReservationsReadRepository interface {
