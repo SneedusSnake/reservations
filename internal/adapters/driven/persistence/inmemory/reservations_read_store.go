@@ -42,7 +42,10 @@ func (r *ReservationsReadStore) Active(t time.Time, tags ...string) ([]readmodel
 	var result []readmodel.Reservation
 	list := r.reservationsStore.List()
 	if len(tags) > 0 {
-		filterSubjects := r.subjects.GetByTags(tags)
+		filterSubjects, err := r.subjects.GetByTags(tags)
+		if err != nil {
+			return []readmodel.Reservation{}, err
+		}
 		list = filterBySubjects(list, filterSubjects)
 	}
 

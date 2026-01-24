@@ -15,7 +15,8 @@ type SubjectsRepositoryContract struct {
 
 func (s SubjectsRepositoryContract) Test (t *testing.T) {
 	store := s.NewStore()
-	cleanUp := func (subjects ...reservations.Subject) {
+	cleanUp := func () {
+		subjects := store.List()
 		for _, subject := range subjects {
 			store.Remove(subject.Id)
 		}
@@ -48,7 +49,7 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 			t.Errorf("Expected to find %v, got %v", subject, foundSubject)
 		}
 
-		cleanUp(subject)
+		cleanUp()
 	})
 
 	t.Run("it removes a subject from the store", func(t *testing.T) {
@@ -83,7 +84,7 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 			t.Errorf("Expected 3 subjects, got %d", len(subjects))
 		}
 
-		cleanUp(subjects...)
+		cleanUp()
 	})
 
 	t.Run("it can add tags and filter by them", func(t *testing.T) {
@@ -104,8 +105,10 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 		store.AddTag(4, "spacious")
 		store.AddTag(4, "soundproof")
 
-		spaciousRooms := store.GetByTags([]string{"spacious"})
-		spaciousAndSoundProof := store.GetByTags([]string{"spacious", "soundproof"})
+		spaciousRooms, err := store.GetByTags([]string{"spacious"})
+		assert.NoError(t, err)
+		spaciousAndSoundProof, err := store.GetByTags([]string{"spacious", "soundproof"})
+		assert.NoError(t, err)
 
 		if len(spaciousRooms) != 2 {
 			t.Errorf("expected to find 2 spacious rooms, found %d instead", len(spaciousRooms))
@@ -118,7 +121,7 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 		if len(spaciousAndSoundProof) != 1 {
 			t.Errorf("expected to find 1 spacious soundproof room, found %d instead", len(spaciousAndSoundProof))
 		}
-		cleanUp(subjects...)
+		cleanUp()
 	})
 
 	t.Run("it cannot add same tag to the same subject twice", func(t *testing.T) {
@@ -127,6 +130,7 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+		cleanUp()
 	})
 
 	t.Run("it returns all tags of a subject", func(t *testing.T) {
@@ -149,7 +153,7 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 		assert.SliceContains(t, tags, expectedTags[1])
 		assert.SliceContains(t, tags, expectedTags[2])
 
-		cleanUp(subject)
+		cleanUp()
 	})
 
 	t.Run("it generates next ID", func(t *testing.T) {
@@ -157,10 +161,11 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 		var ids []int
 
 		for range 5 {
-			go (func (c chan int) {
-				id, _ := store.NextIdentity()
+			go (func (c chan int, t *testing.T) {
+				id, err := store.NextIdentity()
+				assert.NoError(t, err)
 				c <- id
-			})(ch)
+			})(ch, t)
 		}
 		
 		for range 5 {

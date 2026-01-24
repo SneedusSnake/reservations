@@ -10,5 +10,5 @@ type SubjectsRepository interface {
 	Remove(id int) error
 	AddTag(id int, tag string) error
 	GetTags(id int) ([]string, error)
-	GetByTags(tags []string) reservations.Subjects
+	GetByTags(tags []string) (reservations.Subjects, error)
 }

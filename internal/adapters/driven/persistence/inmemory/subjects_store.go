@@ -84,7 +84,7 @@ func (s *SubjectsStore) GetTags(id int) ([]string, error) {
 	return tags, nil
 }
 
-func (s *SubjectsStore) GetByTags(tags []string) reservations.Subjects {
+func (s *SubjectsStore) GetByTags(tags []string) (reservations.Subjects, error) {
 	subjects := make([]reservations.Subject, 0)
 	subjectIds := s.tags[tags[0]]
 
@@ -97,5 +97,5 @@ func (s *SubjectsStore) GetByTags(tags []string) reservations.Subjects {
 		subjects = append(subjects, subject)
 	}
 
-	return subjects
+	return subjects, nil
 }
