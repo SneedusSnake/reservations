@@ -44,8 +44,8 @@ func (s *SubjectsStore) Get(id int) (reservations.Subject, error) {
 	return reservations.Subject{}, fmt.Errorf("Subject with id %d not found", id)
 }
 
-func (s *SubjectsStore) List() reservations.Subjects {
-	return s.subjects
+func (s *SubjectsStore) List() (reservations.Subjects, error) {
+	return s.subjects, nil
 }
 
 func (s *SubjectsStore) Remove(id int) error {

@@ -16,7 +16,7 @@ type SubjectsRepositoryContract struct {
 func (s SubjectsRepositoryContract) Test (t *testing.T) {
 	store := s.NewStore()
 	cleanUp := func () {
-		subjects := store.List()
+		subjects, _ := store.List()
 		for _, subject := range subjects {
 			store.Remove(subject.Id)
 		}
@@ -78,7 +78,8 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 		store.Add(reservations.Subject{Id: 2, Name: "Subject 2"})
 		store.Add(reservations.Subject{Id: 3, Name: "Subject 3"})
 
-		subjects := store.List()
+		subjects, err := store.List()
+		assert.NoError(t, err)
 
 		if len(subjects) != 3 {
 			t.Errorf("Expected 3 subjects, got %d", len(subjects))

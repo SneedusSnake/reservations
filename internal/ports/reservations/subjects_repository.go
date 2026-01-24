@@ -6,7 +6,7 @@ type SubjectsRepository interface {
 	NextIdentity() (int, error)
 	Add(s reservations.Subject) error
 	Get(id int) (reservations.Subject, error)
-	List() reservations.Subjects
+	List() (reservations.Subjects, error)
 	Remove(id int) error
 	AddTag(id int, tag string) error
 	GetTags(id int) ([]string, error)

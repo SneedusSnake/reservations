@@ -47,7 +47,7 @@ func (h *SubjectService) AddTags(cmd AddTags) error {
 	return nil
 }
 
-func (h *SubjectService) List() reservations.Subjects {
+func (h *SubjectService) List() (reservations.Subjects, error) {
 	return h.store.List()
 }
 

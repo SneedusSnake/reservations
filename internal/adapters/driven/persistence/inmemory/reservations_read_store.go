@@ -40,11 +40,15 @@ func (r *ReservationsReadStore) Get(id int) (readmodel.Reservation, error) {
 
 func (r *ReservationsReadStore) Active(t time.Time, tags ...string) ([]readmodel.Reservation, error) {
 	var result []readmodel.Reservation
-	list := r.reservationsStore.List()
+	list, err := r.reservationsStore.List()
+	if err != nil {
+		return result, err
+	}
+
 	if len(tags) > 0 {
 		filterSubjects, err := r.subjects.GetByTags(tags)
 		if err != nil {
-			return []readmodel.Reservation{}, err
+			return result, err
 		}
 		list = filterBySubjects(list, filterSubjects)
 	}
@@ -52,7 +56,7 @@ func (r *ReservationsReadStore) Active(t time.Time, tags ...string) ([]readmodel
 	for _, reservation := range list {
 		model, err := r.make(reservation)
 		if err != nil {
-			return []readmodel.Reservation{}, err
+			return result, err
 		}
 
 		if (!reservation.End.Before(t)) {

@@ -58,7 +58,11 @@ func (ta *telegramAdapter) AddSubjectHandler(ctx context.Context, b *bot.Bot, up
 func (ta *telegramAdapter) AddSubjectTagsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling add subject tags command")
 	args := strings.SplitN(update.Message.Text, " ", 3)
-	subject, err := ta.subjectService.List().Find(args[1])
+	subjects, err := ta.subjectService.List()
+	if err != nil {
+		return "", err
+	}
+	subject, err := subjects.Find(args[1])
 	if err != nil {
 		return "", err
 	}
@@ -74,14 +78,23 @@ func (ta *telegramAdapter) AddSubjectTagsHandler(ctx context.Context, b *bot.Bot
 
 func (ta *telegramAdapter) ListSubjectsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling list command")
+	subjects, err := ta.subjectService.List()
 
-	return ta.subjectService.List().Names(), nil;
+	if err != nil {
+		return "", nil
+	}
+
+	return subjects.Names(), nil;
 }
 
 func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling list subject tags command")
 	args := strings.SplitN(update.Message.Text, " ", 2)
-	subject, err := ta.subjectService.List().Find(args[1])
+	subjects, err := ta.subjectService.List()
+	if err != nil {
+		return "", err
+	}
+	subject, err := subjects.Find(args[1])
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +109,11 @@ func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bo
 func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling create reservation command")
 	args := strings.SplitN(update.Message.Text, " ", 3)
-	subject, err := ta.subjectService.List().Find(args[1])
+	subjects, err := ta.subjectService.List()
+	if err != nil {
+		return "", err
+	}
+	subject, err := subjects.Find(args[1])
 	if err != nil {
 		return "", err
 	}
@@ -132,7 +149,12 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling remove reservation command")
 	args := strings.SplitN(update.Message.Text, " ", 2)
-	subject, err := ta.subjectService.List().Find(args[1])
+	subjects, err := ta.subjectService.List()
+	if err != nil {
+		return "", err
+	}
+
+	subject, err := subjects.Find(args[1])
 
 	if err != nil {
 		return "", err

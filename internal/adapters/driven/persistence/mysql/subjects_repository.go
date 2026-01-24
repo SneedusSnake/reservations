@@ -50,23 +50,23 @@ func (s *SubjectsRepository) Get(id int) (reservations.Subject, error) {
 	return subject, nil
 }
 
-func (s *SubjectsRepository) List() reservations.Subjects {
+func (s *SubjectsRepository) List() (reservations.Subjects, error) {
 	var subjects reservations.Subjects
 
 	rows, err := s.connection.Query("SELECT*FROM subjects")
 	if err != nil {
-		return reservations.Subjects{}
+		return subjects, err
 	}
 	
 	for rows.Next() {
 		var subject reservations.Subject
 		if err = rows.Scan(&subject.Id, &subject.Name); err != nil {
-			return reservations.Subjects{}
+			return subjects, err
 		}
 		subjects = append(subjects, subject)
 	}
 
-	return subjects
+	return subjects, nil
 }
 
 func (s *SubjectsRepository) Remove(id int) error {

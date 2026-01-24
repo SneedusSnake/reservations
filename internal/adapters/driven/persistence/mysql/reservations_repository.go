@@ -27,13 +27,13 @@ func (r *ReservationsRepository) NextIdentity() (int, error) {
 	return r.sequence.Next()
 }
 
-func (r *ReservationsRepository) List() reservations.Reservations {
+func (r *ReservationsRepository) List() (reservations.Reservations, error) {
 	var result reservations.Reservations 
 
 	rows, err := r.connection.Query("SELECT*FROM reservations")
 
 	if err != nil {
-		return reservations.Reservations{}
+		return result, err
 	}
 
 	for rows.Next() {
@@ -45,12 +45,12 @@ func (r *ReservationsRepository) List() reservations.Reservations {
 			&record.Start,
 			&record.End,
 		); err != nil {
-			return reservations.Reservations{}
+			return result, err
 		}
 		result = append(result, record)
 	}
 
-	return result
+	return result, err
 }
 
 func (r *ReservationsRepository) Add(record reservations.Reservation) error {

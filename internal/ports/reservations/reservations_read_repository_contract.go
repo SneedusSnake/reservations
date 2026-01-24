@@ -90,7 +90,9 @@ func (r ReservationsReadRepositoryContract) Test (t *testing.T, reservationsStor
 }
 
 func deleteReservations(t *testing.T, store ReservationsRepository) {
-	for _, r := range store.List() {
+	rs, err := store.List()
+	assert.NoError(t, err)
+	for _, r := range rs {
 		err := store.Remove(r.Id)
 		assert.NoError(t, err)
 	}

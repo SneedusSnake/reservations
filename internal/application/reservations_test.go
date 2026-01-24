@@ -136,9 +136,11 @@ func TestRemoveReservation(t *testing.T) {
 		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
 
 		err := handler.Remove(cmd)
-
 		assert.NoError(t, err)
-		assert.Equal(t, 0, len(reservationsStore.List()))
+		
+		rs, err := reservationsStore.List()
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(rs))
 	})
 
 	t.Run("it does not remove user's past reservations", func(t *testing.T) {
@@ -147,9 +149,11 @@ func TestRemoveReservation(t *testing.T) {
 		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
 
 		err := handler.Remove(cmd)
-
 		assert.Error(t, err)
-		assert.Equal(t, 2, len(reservationsStore.List()))
+
+		rs, err := reservationsStore.List()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(rs))
 	})
 
 	t.Run("it does not remove other users' reservations", func(t *testing.T) {
@@ -157,9 +161,11 @@ func TestRemoveReservation(t *testing.T) {
 		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
 
 		err := handler.Remove(cmd)
-
 		assert.Error(t, err)
-		assert.Equal(t, 1, len(reservationsStore.List()))
+
+		rs, err := reservationsStore.List()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(rs))
 	})
 
 	t.Run("it does not remove other user's subjects reservations", func(t *testing.T) {
@@ -167,9 +173,11 @@ func TestRemoveReservation(t *testing.T) {
 		cmd := application.RemoveReservations{users[0].Id, subjects[0].Id}
 
 		err := handler.Remove(cmd)
-
 		assert.Error(t, err)
-		assert.Equal(t, 1, len(reservationsStore.List()))
+
+		rs, err := reservationsStore.List()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(rs))
 	})
 }
 

@@ -8,7 +8,7 @@ import (
 
 type ReservationsRepository interface {
 	NextIdentity() (int, error)
-	List() reservations.Reservations
+	List() (reservations.Reservations, error)
 	Add(reservation reservations.Reservation) error
 	Get(id int) (reservations.Reservation, error)
 	Remove(id int) error

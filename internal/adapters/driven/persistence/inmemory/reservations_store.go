@@ -28,15 +28,15 @@ func (r *ReservationsStore) NextIdentity() (int, error) {
 	return r.counter, nil
 }
 
-func (r *ReservationsStore) List() reservations.Reservations {
-	return slices.Clone(r.reservations)
+func (r *ReservationsStore) List() (reservations.Reservations, error) {
+	return slices.Clone(r.reservations), nil
 }
 
-func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) reservations.Reservations {
+func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) (reservations.Reservations, error) {
 	var result []reservations.Reservation
 
 	if (from.After(to)) {
-		return result
+		return result, nil
 	}
 
 	for _, reservation := range(r.reservations) {
@@ -45,7 +45,7 @@ func (r *ReservationsStore) ForPeriod(from time.Time, to time.Time) reservations
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 func (r *ReservationsStore) Add(reservation reservations.Reservation) error {
