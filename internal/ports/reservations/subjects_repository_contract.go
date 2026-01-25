@@ -9,155 +9,122 @@ import (
 	"github.com/alecthomas/assert/v2"
 )
 
+
 type SubjectsRepositoryContract struct {
 	NewStore func() SubjectsRepository
 }
 
 func (s SubjectsRepositoryContract) Test (t *testing.T) {
-	store := s.NewStore()
-	cleanUp := func () {
-		subjects, _ := store.List()
-		for _, subject := range subjects {
-			store.Remove(subject.Id)
-		}
-	}
+	store := subjectsRepositoryHelper{SubjectsRepository: s.NewStore(), t: t}
+	cleanUp := store.CleanUp
 
-	t.Run("it returns error when subject was not found", func(t *testing.T) {
+	t.Run("it returns error when the subject was not found", func(t *testing.T) {
 		_, err := store.Get(1234)
 
-		if err == nil {
-			t.Error("Expected to see error, got nil")
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("it adds a new subject to the store", func(t *testing.T) {
+		cleanUp(t)
 		subject := reservations.Subject{Id: 1, Name: "Test subject"}
 
 		err := store.Add(subject)
-
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(t, err)
 
 		foundSubject, err := store.Get(subject.Id)
+		assert.NoError(t, err)
 
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if foundSubject != subject {
-			t.Errorf("Expected to find %v, got %v", subject, foundSubject)
-		}
-
-		cleanUp()
+		assert.Equal(t, subject, foundSubject)
 	})
 
-	t.Run("it removes a subject from the store", func(t *testing.T) {
-		subject := reservations.Subject{Id: 1, Name: "Test subject"}
-		err := store.Add(subject)
+	t.Run("it gets the subject by name", func(t *testing.T) {
+		cleanUp(t)
+		subjects := store.SubjectsExist("first", "second", "third")
 
-		if err != nil {
-			t.Fatal(err)
-		}
+		s, err := store.GetByName("second")
+		assert.NoError(t, err)
+		assert.Equal(t, subjects[1].Id, s.Id)
 
-		store.Remove(subject.Id)
+		s, err = store.GetByName("does not exist")
+		assert.Error(t, err)
+	})
 
-		if err != nil {
-			t.Fatal(err)
-		}
+	t.Run("it removes the subject from the store", func(t *testing.T) {
+		cleanUp(t)
+		subject := store.SubjectExists("Test Subject")
+
+		err := store.Remove(subject.Id)
+		assert.NoError(t, err)
 
 		_, err = store.Get(subject.Id)
-
-		if err == nil {
-			t.Errorf("Expected subject with id %d to be removed from the store", subject.Id)
-		}
+		assert.Error(t, err)
 	})
 
 	t.Run("it returns list of all subjects", func(t *testing.T) {
-		store.Add(reservations.Subject{Id: 1, Name: "Subject 1"})
-		store.Add(reservations.Subject{Id: 2, Name: "Subject 2"})
-		store.Add(reservations.Subject{Id: 3, Name: "Subject 3"})
+		cleanUp(t)
+		store.SubjectsExist("Subject 1", "Subject 2", "Subject 3")
 
 		subjects, err := store.List()
 		assert.NoError(t, err)
-
-		if len(subjects) != 3 {
-			t.Errorf("Expected 3 subjects, got %d", len(subjects))
-		}
-
-		cleanUp()
+		assert.Equal(t, 3, len(subjects))
 	})
 
 	t.Run("it can add tags and filter by them", func(t *testing.T) {
-		subjects := []reservations.Subject{
-			{Id: 1, Name: "Conference room #1"},
-			{Id: 2, Name: "Conference room #2"},
-			{Id: 3, Name: "Conference room #3"},
-			{Id: 4, Name: "Conference room #4"},
-		}
+		cleanUp(t)
+		subjects := store.SubjectsExist(
+			"Conference room #1",
+			"Conference room #2",
+			"Conference room #3",
+			"Conference room #4",
+		)
+		expectedSpacious := subjects[1]
+		expectedSpaciousAndSoundProof := subjects[3]
 
-		for _, subject := range subjects {
-			err := store.Add(subject)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-		store.AddTag(2, "spacious")
-		store.AddTag(4, "spacious")
-		store.AddTag(4, "soundproof")
+		store.AddTag(expectedSpacious.Id, "spacious")
+		store.AddTag(expectedSpaciousAndSoundProof.Id, "spacious")
+		store.AddTag(expectedSpaciousAndSoundProof.Id, "soundproof")
 
 		spaciousRooms, err := store.GetByTags([]string{"spacious"})
 		assert.NoError(t, err)
+		assert.Equal(t, 2, len(spaciousRooms))
+		assert.Equal(t, expectedSpacious.Id, spaciousRooms[0].Id)
+		assert.Equal(t, expectedSpaciousAndSoundProof.Id, spaciousRooms[1].Id)
+
 		spaciousAndSoundProof, err := store.GetByTags([]string{"spacious", "soundproof"})
 		assert.NoError(t, err)
+		assert.Equal(t, 1, len(spaciousAndSoundProof))
+		assert.Equal(t, expectedSpaciousAndSoundProof.Id, spaciousAndSoundProof[0].Id)
 
-		if len(spaciousRooms) != 2 {
-			t.Errorf("expected to find 2 spacious rooms, found %d instead", len(spaciousRooms))
-		}
-
-		if spaciousRooms[0].Id != 2 || spaciousRooms[1].Id != 4 {
-			t.Errorf("Unexpected item retrieved by 'spacious' tag, expected subjects with ids 2 and 4, got %v", spaciousRooms)
-		}
-
-		if len(spaciousAndSoundProof) != 1 {
-			t.Errorf("expected to find 1 spacious soundproof room, found %d instead", len(spaciousAndSoundProof))
-		}
-		cleanUp()
 	})
 
 	t.Run("it cannot add same tag to the same subject twice", func(t *testing.T) {
-		err := store.Add(reservations.Subject{Id: 1, Name: "Test"})
+		cleanUp(t)
+		s := store.SubjectExists("Test Subject")
+		err := store.AddTag(s.Id, "Test")
+		assert.NoError(t, err)
 
-			if err != nil {
-				t.Fatal(err)
-			}
-		cleanUp()
+		err = store.AddTag(s.Id, "Test")
+		assert.Error(t, err)
 	})
 
 	t.Run("it returns all tags of a subject", func(t *testing.T) {
-		subject := reservations.Subject{Id: 1, Name: "Test"}
-		err := store.Add(subject)
-		if err != nil {
-			t.Fatal(err)
-		}
+		cleanUp(t)
+		subject := store.SubjectExists("Test")
 		expectedTags := []string{"tag 1", "tag 2", "tag 3"}
 		for _, tag := range expectedTags {
 			store.AddTag(subject.Id, tag)
 		}
 
 		tags, err := store.GetTags(subject.Id)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NoError(t, err)
 
 		assert.SliceContains(t, tags, expectedTags[0])
 		assert.SliceContains(t, tags, expectedTags[1])
 		assert.SliceContains(t, tags, expectedTags[2])
-
-		cleanUp()
 	})
 
 	t.Run("it generates next ID", func(t *testing.T) {
+		cleanUp(t)
 		ch := make(chan int, 5)
 		var ids []int
 
@@ -183,3 +150,38 @@ func (s SubjectsRepositoryContract) Test (t *testing.T) {
 	})
 }
 
+type subjectsRepositoryHelper struct {
+	SubjectsRepository
+	t testing.TB
+}
+
+func (h *subjectsRepositoryHelper) SubjectExists(name string) reservations.Subject {
+	id, err := h.NextIdentity()
+	assert.NoError(h.t, err)
+	s := reservations.Subject{Id: id, Name: name}
+	err = h.Add(s)
+	assert.NoError(h.t, err)
+
+	return s
+}
+
+func (h *subjectsRepositoryHelper) SubjectsExist(names ...string) reservations.Subjects {
+	var subjects reservations.Subjects
+
+	for _, name := range names {
+		subjects = append(subjects, h.SubjectExists(name))
+	}
+
+	return subjects
+}
+
+func (h *subjectsRepositoryHelper) CleanUp(t testing.TB) {
+	t.Cleanup(func() {
+		subjects, err := h.List()
+		assert.NoError(t, err)
+
+		for _, s := range subjects {
+			h.Remove(s.Id)
+		}
+	})
+}

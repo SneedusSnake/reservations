@@ -63,8 +63,21 @@ func (s *SubjectsStore) Remove(id int) error {
 func (s *SubjectsStore) AddTag(id int, tag string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	subject, _ := s.Get(id)
+	subject, err := s.Get(id)
+	if err != nil {
+		return err
+	}
+
+	tags, err := s.GetTags(id)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(tags, tag) {
+		return fmt.Errorf("tag %s already exists for subject %s", tag, subject.Name)
+	}
+
 	s.tags[tag] = append(s.tags[tag], subject.Id)
+
 	return nil;
 }
 
@@ -98,4 +111,19 @@ func (s *SubjectsStore) GetByTags(tags []string) (reservations.Subjects, error) 
 	}
 
 	return subjects, nil
+}
+
+func (s *SubjectsStore) GetByName(name string) (reservations.Subject, error) {
+	subjects, err := s.List()
+	if err != nil {
+		return reservations.Subject{}, err
+	}
+
+	for _, subject := range subjects {
+		if subject.Name == name {
+			return subject, nil
+		}
+	}
+
+	return reservations.Subject{}, fmt.Errorf("Subject with name %s was not found", name)
 }
