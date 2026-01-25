@@ -3,6 +3,7 @@ package application
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/SneedusSnake/Reservations/internal/domain/reservations"
@@ -33,6 +34,7 @@ type ReservationService struct {
 	reservationsReadStore reservationsPort.ReservationsReadRepository
 	usersStore usersPort.UsersRepository
 	clock ports.Clock
+	mu sync.Mutex
 }
 
 func NewReservationService(
@@ -52,6 +54,12 @@ func NewReservationService(
 }
 
 func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reservation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.clock.Current().After(cmd.From.Add(time.Minute)) {
+		return reservations.Reservation{}, errors.New("Attempt to make a reservation in the past")
+	}
+
 	_, err := s.usersStore.Get(cmd.UserId)
 
 	if err != nil {
@@ -62,10 +70,6 @@ func (s *ReservationService) Create(cmd CreateReservation) (reservations.Reserva
 
 	if err != nil {
 		return reservations.Reservation{}, err
-	}
-
-	if s.clock.Current().After(cmd.From.Add(time.Minute)) {
-		return reservations.Reservation{}, errors.New("Attempt to make a reservation in the past")
 	}
 
 	activeReservations, err := s.reservationsStore.ForPeriod(cmd.From, cmd.To)
