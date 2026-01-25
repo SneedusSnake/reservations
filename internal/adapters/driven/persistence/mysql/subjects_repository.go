@@ -126,3 +126,19 @@ func (s *SubjectsRepository) GetByTags(tags []string) (reservations.Subjects, er
 
 	return subjects, nil
 }
+
+func (s *SubjectsRepository) GetByName(name string) (reservations.Subject, error) {
+	subject := reservations.Subject{}
+
+	row := s.connection.QueryRow("SELECT*FROM subjects WHERE name = ? FOR UPDATE", name)
+
+	if err := row.Scan(&subject.Id, &subject.Name); err != nil {
+		if err == sql.ErrNoRows {
+			return reservations.Subject{}, fmt.Errorf("Subject with name %s was not found", name)
+		}
+
+		return reservations.Subject{}, err
+	}
+
+	return subject, nil
+}
