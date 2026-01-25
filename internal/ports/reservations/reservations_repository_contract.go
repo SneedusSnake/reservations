@@ -166,6 +166,33 @@ func (builder reservationBuilder) EndsAt(t time.Time) reservationBuilder {
 	return builder
 }
 
+func (builder reservationBuilder) UserId(id int) reservationBuilder {
+	blueprint := builder.blueprint
+	blueprint.UserId = id
+	builder.blueprint = blueprint
+
+	return builder
+}
+
+func (builder reservationBuilder) SubjectId(id int) reservationBuilder {
+	blueprint := builder.blueprint
+	blueprint.SubjectId = id
+	builder.blueprint = blueprint
+
+	return builder
+}
+
+func (builder reservationBuilder) CleanUp(t testing.TB) {
+	t.Cleanup(func() {
+		rs, err := builder.store.List()
+		assert.NoError(t, err)
+
+		for _, r := range rs {
+			builder.store.Remove(r.Id)
+		}
+	})
+}
+
 func builder(t testing.TB, store ReservationsRepository) reservationBuilder {
 	return reservationBuilder{
 		t: t,

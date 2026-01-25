@@ -45,6 +45,8 @@ type Config struct {
 	}
 	Clock string `envconfig:"CLOCK_DRIVER"`
 	CacheClockPath string `envconfig:"CACHE_CLOCK_PATH"`
+	PersistenceDriver string `envconfig:"PERSISTENCE_DRIVER"`
+	MySqlConnectionString string `envconfig:"MYSQL_CONNECTION"`
 }
 
 func (app *App) Resolve(dependency string) any {

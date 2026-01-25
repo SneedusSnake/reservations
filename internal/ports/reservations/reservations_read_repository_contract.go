@@ -18,13 +18,35 @@ type ReservationsReadRepositoryContract struct {
 
 func (r ReservationsReadRepositoryContract) Test (t *testing.T, reservationsStorage ReservationsRepository, usersStorage users.UsersRepository, subjectsStorage SubjectsRepository) {
 	store := r.NewRepository()
-	subjectsStorage.Add(reservations.Subject{Id: 1, Name: "Subject#1"})
-	subjectsStorage.Add(reservations.Subject{Id: 2, Name: "Subject#2"})
-	subjectsStorage.Add(reservations.Subject{Id: 3, Name: "Subject#3"})
-	subjectsStorage.AddTag(1, "test")
-	subjectsStorage.AddTag(3, "test")
-	usersStorage.Add(domain.User{Id: 1, Name: "Alice"})
-	usersStorage.Add(domain.User{Id: 2, Name: "Bob"})
+	factory := builder(t, reservationsStorage)
+	now, err := time.Parse(time.DateTime, "2025-02-01 14:00:00")
+	assert.NoError(t, err)
+
+	subjects := reservations.Subjects{
+		reservations.Subject{Id: 1, Name: "Subject#1"},
+		reservations.Subject{Id: 2, Name: "Subject#2"},
+		reservations.Subject{Id: 3, Name: "Subject#3"},
+	}
+
+	for _, s := range subjects {
+		err := subjectsStorage.Add(s)
+		assert.NoError(t, err)
+	}
+
+	subjectsStorage.AddTag(subjects[0].Id, "test")
+	subjectsStorage.AddTag(subjects[2].Id, "test")
+
+	users := []domain.User{
+		{Id: 1, Name: "Alice"},
+		{Id: 2, Name: "Bob"},
+	}
+
+	for _, u := range users {
+		err := usersStorage.Add(u)
+		assert.NoError(t, err)
+	}
+
+	cleanUp := factory.CleanUp
 
 	t.Run("It returns error when no reservation is found", func(t *testing.T) {
 		_, err := store.Get(12345)
@@ -33,33 +55,38 @@ func (r ReservationsReadRepositoryContract) Test (t *testing.T, reservationsStor
 	})
 
 	t.Run("It fetches reservation read model by Id", func(t *testing.T) {
-		t.Cleanup(func() {deleteReservations(t, reservationsStorage)})
-		expected := reservations.Reservation{Id: 1, UserId: 1, SubjectId: 1, Start: time.Now(), End: time.Now().Add(time.Hour)}
-		addReservation(t, reservationsStorage, expected)
+		cleanUp(t)
+		user := users[1]
+		subject := subjects[0]
+		expected := factory.UserId(user.Id).SubjectId(subject.Id).Persist()
+
 		actual, err := store.Get(1)
 		assert.NoError(t, err)
 
-		assert.Equal(t, "Alice", actual.User)
-		assert.Equal(t, "Subject#1", actual.Subject)
+		assert.Equal(t, subject.Name, actual.Subject)
+		assert.Equal(t, user.Name, actual.User)
 		assert.Equal(t, expected.Start, actual.Start)
 		assert.Equal(t, expected.End, actual.End)
 	})
 
 	t.Run("It fetches active reservations list", func(t *testing.T) {
-		t.Cleanup(func() {deleteReservations(t, reservationsStorage)})
-		rs := []reservations.Reservation{
-			{Id: 1, UserId: 1, SubjectId: 1, Start: time.Now(), End: time.Now().Add(time.Hour)},
-			{Id: 2, UserId: 1, SubjectId: 2, Start: time.Now(), End: time.Now().Add(time.Hour)},
-			{Id: 3, UserId: 2, SubjectId: 3, Start: time.Now(), End: time.Now().Add(time.Hour)},
-			{Id: 4, UserId: 2, SubjectId: 1, Start: time.Now().Add(time.Hour*-1), End: time.Now().Add(-time.Second)},
+		cleanUp(t)
+		blueprint := factory.UserId(users[0].Id).SubjectId(subjects[0].Id).
+			StartsAt(now).
+			EndsAt(now.Add(time.Hour))
+		expectedReservations := reservations.Reservations{
+				blueprint.Persist(),
+				blueprint.SubjectId(subjects[1].Id).Persist(),
+				blueprint.UserId(users[1].Id).SubjectId(subjects[2].Id).Persist(),
+				blueprint.UserId(users[1].Id).Persist(),
 		}
-		addReservations(t, reservationsStorage, rs)
-		list, err := store.Active(time.Now())
-		assert.NoError(t, err)
-		rs = rs[:3]
-		assert.Equal(t, len(rs), len(list))
+		blueprint.StartsAt(now.Add(-time.Hour)).EndsAt(now.Add(-time.Minute)).Persist()
 
-		for _, r := range rs {
+		list, err := store.Active(now)
+		assert.NoError(t, err)
+		assert.Equal(t, len(expectedReservations), len(list))
+
+		for _, r := range expectedReservations {
 			u, _ := usersStorage.Get(r.UserId)
 			s, _ := subjectsStorage.Get(r.SubjectId)
 			assert.SliceContains(t, list, readmodel.Reservation{
@@ -73,39 +100,16 @@ func (r ReservationsReadRepositoryContract) Test (t *testing.T, reservationsStor
 	})
 
 	t.Run("It fetches active reservations list filtered by tags", func(t *testing.T) {
-		t.Cleanup(func() {deleteReservations(t, reservationsStorage)})
-		rs := []reservations.Reservation{
-			{Id: 1, UserId: 1, SubjectId: 1, Start: time.Now(), End: time.Now().Add(time.Hour)},
-			{Id: 2, UserId: 1, SubjectId: 2, Start: time.Now(), End: time.Now().Add(time.Hour)},
-			{Id: 3, UserId: 2, SubjectId: 3, Start: time.Now(), End: time.Now().Add(time.Hour)},
-		}
-		addReservations(t, reservationsStorage, rs)
-		list, err := store.Active(time.Now(), "test")
+		cleanUp(t)
+		blueprint := factory.UserId(users[0].Id).StartsAt(now).EndsAt(now.Add(time.Hour))
+		blueprint.SubjectId(subjects[0].Id).Persist()
+		blueprint.SubjectId(subjects[1].Id).Persist()
+		blueprint.SubjectId(subjects[2].Id).Persist()
+
+		list, err := store.Active(now, "test")
 		assert.NoError(t, err)
 		assert.Equal(t, 2, len(list))
 		assert.Equal(t, "Subject#1", list[0].Subject)
 		assert.Equal(t, "Subject#3", list[1].Subject)
-
 	})
 }
-
-func deleteReservations(t *testing.T, store ReservationsRepository) {
-	rs, err := store.List()
-	assert.NoError(t, err)
-	for _, r := range rs {
-		err := store.Remove(r.Id)
-		assert.NoError(t, err)
-	}
-}
-
-func addReservation(t *testing.T, store ReservationsRepository, r reservations.Reservation) {
-	err := store.Add(r)
-	assert.NoError(t, err)
-}
-
-func addReservations(t *testing.T, store ReservationsRepository, rs reservations.Reservations) {
-	for _, r := range rs {
-		addReservation(t, store, r)
-	}
-}
-
