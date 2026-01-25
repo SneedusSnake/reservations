@@ -51,6 +51,10 @@ func (h *SubjectService) List() (reservations.Subjects, error) {
 	return h.store.List()
 }
 
+func (h *SubjectService) GetByName(name string) (reservations.Subject, error) {
+	return h.store.GetByName(name)
+}
+
 func (h *SubjectService) ListTags(subjectId int) ([]string, error) {
 	return h.store.GetTags(subjectId)
 }

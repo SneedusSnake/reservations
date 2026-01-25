@@ -1,7 +1,6 @@
 package reservations
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -17,13 +16,4 @@ func (subjects Subjects) Names() string {
 		subjectNames = append(subjectNames, subject.Name)
 	}
 	return strings.Join(subjectNames, "\n")
-}
-
-func (subjects Subjects) Find(name string) (Subject, error) {
-	for _, s := range subjects {
-		if s.Name == name {
-			return s, nil
-		}
-	}
-	return Subject{}, fmt.Errorf("No subject with name %s found", name)
 }
