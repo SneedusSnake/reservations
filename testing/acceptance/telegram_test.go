@@ -3,6 +3,7 @@ package acceptance
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/SneedusSnake/Reservations/testing/acceptance/specifications"
 	"github.com/SneedusSnake/Reservations/testing/containers"
 	"github.com/SneedusSnake/Reservations/testing/containers/app"
+	"github.com/SneedusSnake/Reservations/testing/containers/mysql"
 	"github.com/SneedusSnake/Reservations/testing/containers/telegram_api"
 	"github.com/alecthomas/assert/v2"
 	"github.com/testcontainers/testcontainers-go"
@@ -22,6 +24,7 @@ type TestApplication struct {
 	BotToken string
 	TelegramApi testcontainers.Container
 	App testcontainers.Container
+	MySqlContainer *mysql.MysqlContainer
 	Network *testcontainers.DockerNetwork
 	Ctx context.Context
 }
@@ -84,13 +87,20 @@ func bootApplication(t *testing.T) *TestApplication {
 	ctx := t.Context()
 	net, err := network.New(ctx)
 	assert.NoError(t, err)
+	mysqlConnection := ""
+	if os.Getenv("PERSISTENCE") == "mysql" {
+		sqlContainer, err := mysql.Start(ctx, net.Name, containers.Stdout("mysql"))
+		assert.NoError(t, err)
+		mysqlConnection, err = sqlContainer.ExternalConnectionString(ctx)
+		assert.NoError(t, err)
+	}
 
 	testApp := &TestApplication{Ctx: ctx, Network: net}
 	
 	apiContainer, err := telegram_api.Start(ctx, net.Name, containers.Stdout("Telegram test server"))
 	testcontainers.CleanupContainer(t, apiContainer)
 	assert.NoError(t, err)
-	appContainer, err := app.Start(ctx, net.Name, containers.Stdout("Application"))
+	appContainer, err := app.Start(ctx, net.Name, mysqlConnection, containers.Stdout("Application"))
 	testcontainers.CleanupContainer(t, appContainer)
 	assert.NoError(t, err)
 	testApp.TelegramApi = apiContainer

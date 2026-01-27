@@ -12,7 +12,7 @@ import (
 )
 
 func TestMysqlUsersRepository(t *testing.T) {
-	container, err := mysqlContainer.Start(context.Background(), containers.Stdout("Mysql"))
+	container, err := mysqlContainer.Start(context.Background(), "", containers.Stdout("Mysql"))
 	if  err != nil {
 		assert.NoError(t, err)
 	}

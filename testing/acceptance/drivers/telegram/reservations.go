@@ -228,7 +228,7 @@ func (d *TelegramDriver) sendClientMessage(msg Message) {
 func (d *TelegramDriver) getLastBotResponse() string {
 	var responseData []Response
 
-	for range 5 {
+	for range 20 {
 		r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
 		assert.NoError(d.t, err)
 

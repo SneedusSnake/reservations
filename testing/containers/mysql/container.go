@@ -3,10 +3,12 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
-	"github.com/pressly/goose/v3"
 	"github.com/SneedusSnake/Reservations/testing/utils"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 )
@@ -40,13 +42,36 @@ func (container *MysqlContainer) Connection() (*sql.DB, error) {
 	return db, nil
 }
 
-func Start(ctx context.Context, logs ...testcontainers.LogConsumer) (*MysqlContainer, error) {
+func (container *MysqlContainer) ExternalConnectionString(ctx context.Context, args ...string) (string, error) {
+	endpoint, err := container.ContainerIP(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	extraArgs := ""
+	if len(args) > 0 {
+		extraArgs = strings.Join(args, "&")
+	}
+	if extraArgs != "" {
+		extraArgs = "?" + extraArgs
+	}
+
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s%s", "root", "root", endpoint, "app", extraArgs), nil
+}
+
+func Start(ctx context.Context, network string, logs ...testcontainers.LogConsumer) (*MysqlContainer, error) {
+	req := testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Networks: []string{network},
+		},
+	}
 	container, err := mysql.Run(
 		ctx,
 		"mysql:8.4",
 		mysql.WithDatabase("app"),
 		mysql.WithUsername("root"),
 		mysql.WithPassword("root"),
+		testcontainers.CustomizeRequest(req),
 	)
 
 	if err != nil {

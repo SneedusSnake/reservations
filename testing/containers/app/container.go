@@ -10,7 +10,11 @@ import (
 
 const CLOCK_CACHE_PATH = "/tmp/clock_go"
 
-func Start(ctx context.Context, network string, logs ...testcontainers.LogConsumer) (testcontainers.Container, error) {
+func Start(ctx context.Context, network string, mysqlConnection string, logs ...testcontainers.LogConsumer) (testcontainers.Container, error) {
+	persistenceDriver := "memory"
+	if mysqlConnection != "" {
+		persistenceDriver = "mysql"
+	}
 	req := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context: utils.TestsRootDir() + "/..",
@@ -22,6 +26,8 @@ func Start(ctx context.Context, network string, logs ...testcontainers.LogConsum
 			"TELEGRAM_API_TOKEN": "1234567",
 			"CLOCK_DRIVER": "cache",
 			"CACHE_CLOCK_PATH": CLOCK_CACHE_PATH,
+			"MYSQL_CONNECTION": mysqlConnection,
+			"PERSISTENCE_DRIVER": persistenceDriver,
 			},
 		Networks: []string{network},
 		LogConsumerCfg: &testcontainers.LogConsumerConfig{

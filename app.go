@@ -1,15 +1,20 @@
 package app
 
 import (
-	"log"
 	"context"
+	"database/sql"
+	"log"
 
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/system"
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/persistence/inmemory"
+	"github.com/SneedusSnake/Reservations/internal/adapters/driven/persistence/mysql"
 	"github.com/SneedusSnake/Reservations/internal/adapters/driving/telegram"
 	"github.com/SneedusSnake/Reservations/internal/application"
 	"github.com/SneedusSnake/Reservations/internal/ports"
+	"github.com/SneedusSnake/Reservations/internal/ports/reservations"
+	"github.com/SneedusSnake/Reservations/internal/ports/users"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/kelseyhightower/envconfig"
@@ -69,6 +74,26 @@ func Bootstrap() *App {
 	return app
 }
 
+func (app *App) usersStore() users.UsersRepository {
+	return app.Resolve(STORE_USERS).(users.UsersRepository)
+}
+
+func (app *App) tgUsersStore() telegram.TelegramUsersRepository {
+	return app.Resolve(STORE_TG_USERS).(telegram.TelegramUsersRepository)
+}
+
+func (app *App) subjectsStore() reservations.SubjectsRepository {
+	return app.Resolve(STORE_SUBJECTS).(reservations.SubjectsRepository)
+}
+
+func (app *App) reservationsStore() reservations.ReservationsRepository {
+	return app.Resolve(STORE_RESERVATIONS).(reservations.ReservationsRepository)
+}
+
+func (app *App) reservationsReadStore() reservations.ReservationsReadRepository {
+	return app.Resolve(STORE_READ_RESERVATIONS).(reservations.ReservationsReadRepository)
+}
+
 func (app *App) loadConfig() {
 	cfg := Config{}
 	err := envconfig.Process("", &cfg)
@@ -86,40 +111,80 @@ func (app *App) registerDependencies() {
 	if app.Config.Clock == "cache" {
 		clock = cache.NewClock(app.Config.CacheClockPath)
 	} 
+	app.container[CLOCK] = clock
 
-	subjectsStore := inmemory.NewSubjectsStore()
-	usersStore := inmemory.NewUsersStore()
-	tgUsersStore := inmemory.NewTelegramUsersStore(usersStore)
-	reservationsStore := inmemory.NewReservationStore()
-	reservationsReadStore := inmemory.NewReservationReadStore(reservationsStore, usersStore, subjectsStore)
-
-	reservationService := application.NewReservationService(
-		subjectsStore,
-		reservationsStore,
-		reservationsReadStore,
-		usersStore,
-		clock,
-	)
-	subjectService := application.NewSubjectService(subjectsStore)
-	userService := application.NewUserService(usersStore)
-	tgUserService := telegram.NewTelegramUserService(tgUsersStore, *userService)
+	app.registerStores()
+	app.registerServices()
 
 	tgBot := app.telegramBot()
+
+	app.container[TELERAM_BOT] = tgBot
+	app.registerTelegramBotHandlers()
+}
+
+func (app *App) registerStores() {
+	var subjectsStore reservations.SubjectsRepository
+	var reservationsStore reservations.ReservationsRepository
+	var reservationsReadStore reservations.ReservationsReadRepository
+	var usersStore users.UsersRepository
+	var tgUsersStore telegram.TelegramUsersRepository
+
+	subjectsStore = inmemory.NewSubjectsStore()
+	usersStore = inmemory.NewUsersStore()
+	tgUsersStore = inmemory.NewTelegramUsersStore(usersStore)
+	reservationsStore = inmemory.NewReservationStore()
+	reservationsReadStore = inmemory.NewReservationReadStore(
+		reservationsStore.(*inmemory.ReservationsStore),
+		usersStore.(*inmemory.UsersStore), 
+		subjectsStore.(*inmemory.SubjectsStore),
+	)
+
+	if app.Config.PersistenceDriver == "mysql" {
+		db, err := sql.Open("mysql", app.Config.MySqlConnectionString)
+		if err != nil {
+			app.Error(err)
+		}
+		err = db.Ping()
+		if err != nil {
+			app.Error(err)
+		}
+
+		subjectsStore = mysql.NewSubjectsRepository(db)
+		usersStore = mysql.NewUsersRepository(db)
+		tgUsersStore = mysql.NewTelegramUsersRepository(db)
+		reservationsStore = mysql.NewReservationsRepository(db)
+		reservationsReadStore = mysql.NewReservationsReadRepository(db)
+	}
 
 	app.container[STORE_SUBJECTS] = subjectsStore
 	app.container[STORE_USERS] = usersStore
 	app.container[STORE_TG_USERS] = tgUsersStore
 	app.container[STORE_RESERVATIONS] = reservationsStore
 	app.container[STORE_READ_RESERVATIONS] = reservationsReadStore
-	app.container[CLOCK] = clock
+}
+
+func (app *App) registerServices() {
+	subjectsStore := app.subjectsStore()
+	reservationsStore := app.reservationsStore()
+	reservationsReadStore := app.reservationsReadStore()
+	usersStore := app.usersStore()
+	tgUsersStore := app.tgUsersStore()
+
+	reservationService := application.NewReservationService(
+		subjectsStore,
+		reservationsStore,
+		reservationsReadStore,
+		usersStore,
+		app.Resolve(CLOCK).(ports.Clock),
+	)
+	subjectService := application.NewSubjectService(subjectsStore)
+	userService := application.NewUserService(usersStore)
+	tgUserService := telegram.NewTelegramUserService(tgUsersStore, *userService)
 
 	app.container[SERVICE_RESERVATION] = reservationService
 	app.container[SERVICE_SUBJECT] = subjectService
 	app.container[SERVICE_USER] = userService
 	app.container[SERVICE_TELEGRAM_USER] = tgUserService
-
-	app.container[TELERAM_BOT] = tgBot
-	app.registerTelegramBotHandlers()
 }
 
 func (app *App) telegramBot() *bot.Bot {
@@ -129,8 +194,7 @@ func (app *App) telegramBot() *bot.Bot {
 	b, err := bot.New(app.Config.TelegramApi.Token, opts...)
 
 	if err != nil {
-		app.Log.Print(err)
-		panic(err)
+		app.Error(err)
 	}
 
 	return b
@@ -175,4 +239,8 @@ func botHandlerFunc(h UpdateHandler) bot.HandlerFunc {
 			})
 		}
 	}
+}
+
+func (app *App) Error(err error) {
+	app.Log.Fatal(err)
 }
