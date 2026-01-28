@@ -93,6 +93,7 @@ func (d *TelegramDriver) UserRequestsSubjectsList() {
 	}
 
 	d.sendClientMessage(msg)
+	d.waitForBotResponse()
 }
 
 func (d *TelegramDriver) UserRequestsSubjectTags(subject string) {
@@ -102,6 +103,7 @@ func (d *TelegramDriver) UserRequestsSubjectTags(subject string) {
 	}
 
 	d.sendClientMessage(msg)
+	d.waitForBotResponse()
 }
 
 func (d *TelegramDriver) UserRequestsReservationForSubject(user string, subject string, minutes int) {
@@ -112,6 +114,7 @@ func (d *TelegramDriver) UserRequestsReservationForSubject(user string, subject 
 	}
 
 	d.sendClientMessage(msg)
+	d.waitForBotResponse()
 }
 
 func (d *TelegramDriver) UserRequestsReservationRemoval(user string, subject string) {
@@ -122,6 +125,7 @@ func (d *TelegramDriver) UserRequestsReservationRemoval(user string, subject str
 	}
 
 	d.sendClientMessage(msg)
+	d.waitForBotResponse()
 }
 
 func (d *TelegramDriver) UserRequestsReservationsList(tags ...string) {
@@ -135,6 +139,7 @@ func (d *TelegramDriver) UserRequestsReservationsList(tags ...string) {
 	}
 
 	d.sendClientMessage(msg)
+	d.waitForBotResponse()
 }
 
 func (d *TelegramDriver) UserSeesSubjects(subject ...string) {
@@ -225,22 +230,42 @@ func (d *TelegramDriver) sendClientMessage(msg Message) {
 	assert.NoError(d.t, err)
 }
 
-func (d *TelegramDriver) getLastBotResponse() string {
+func (d *TelegramDriver) waitForBotResponse() {
 	var responseData []Response
+	ticker := time.NewTicker(time.Millisecond*500)
+	done := make(chan bool, 1)
+	timer := time.NewTimer(time.Second*20)
 
-	for range 20 {
-		r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
-		assert.NoError(d.t, err)
+	go func() {
+		<- timer.C
+		done <- true
+	}()
 
-		body, err := io.ReadAll(r.Body)
-		assert.NoError(d.t, err)
-		err = json.Unmarshal(body, &responseData)
-		assert.NoError(d.t, err)
-		for _, response := range responseData {
-			d.responses = append(d.responses, response)
+	for {
+		select {
+		case <- done:
+			ticker.Stop()
+			return
+		case <- ticker.C:
+			r, err := d.client.Get(fmt.Sprintf("%s/testing/getBotMessages", d.host))
+			assert.NoError(d.t, err)
+
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(d.t, err)
+			err = json.Unmarshal(body, &responseData)
+			assert.NoError(d.t, err)
+			for _, response := range responseData {
+				d.responses = append(d.responses, response)
+			}
+
+			if len(responseData) > 0 {
+				done <- true
+			}
 		}
 	}
+}
 
+func (d *TelegramDriver) getLastBotResponse() string {
 	assert.NotEqual(d.t, 0, len(d.responses))
 	botMessage := d.responses[len(d.responses) - 1]
 	assert.Equal(d.t, d.chatId, botMessage.ChatId)

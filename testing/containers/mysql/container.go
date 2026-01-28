@@ -49,6 +49,7 @@ func (container *MysqlContainer) ExternalConnectionString(ctx context.Context, a
 	}
 
 	extraArgs := ""
+	args = append(args, "parseTime=true")
 	if len(args) > 0 {
 		extraArgs = strings.Join(args, "&")
 	}
