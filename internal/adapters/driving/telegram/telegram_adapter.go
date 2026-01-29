@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
@@ -45,8 +44,11 @@ func NewAdapter(
 
 func (ta *telegramAdapter) AddSubjectHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling add subject command")
-	name := strings.SplitN(update.Message.Text, " ", 2)[1]
-	_, err := ta.subjectService.Create(name)
+	input, err := ParseAddSubject(update)
+	if err != nil {
+		return err.Error(), nil
+	}
+	_, err = ta.subjectService.Create(input.Name)
 
 	if err != nil {
 		return "", err
@@ -57,12 +59,15 @@ func (ta *telegramAdapter) AddSubjectHandler(ctx context.Context, b *bot.Bot, up
 
 func (ta *telegramAdapter) AddSubjectTagsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling add subject tags command")
-	args := strings.SplitN(update.Message.Text, " ", 3)
-	subject, err := ta.subjectService.GetByName(args[1])
+	input, err := ParseAddTags(update)
+	if err != nil {
+		return err.Error(), nil
+	}
+	subject, err := ta.subjectService.GetByName(input.SubjectName)
 	if err != nil {
 		return "", err
 	}
-	cmd := application.AddTags{SubjectId: subject.Id, Tags: strings.Split(args[2], " ")}
+	cmd := application.AddTags{SubjectId: subject.Id, Tags: input.Tags}
 	err = ta.subjectService.AddTags(cmd)
 
 	if err != nil {
@@ -85,8 +90,11 @@ func (ta *telegramAdapter) ListSubjectsHandler(ctx context.Context, b *bot.Bot, 
 
 func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling list subject tags command")
-	args := strings.SplitN(update.Message.Text, " ", 2)
-	subject, err := ta.subjectService.GetByName(args[1])
+	input, err := ParseListTags(update)
+	if err != nil {
+		return err.Error(), nil
+	}
+	subject, err := ta.subjectService.GetByName(input.SubjectName)
 	if err != nil {
 		return "", err
 	}
@@ -100,16 +108,16 @@ func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bo
 
 func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling create reservation command")
-	args := strings.SplitN(update.Message.Text, " ", 3)
-	subject, err := ta.subjectService.GetByName(args[1])
+	input, err := ParseCreateReservation(update)
 	if err != nil {
-		return "", err
+		return err.Error(), nil
 	}
-	minutes, err := strconv.Atoi(args[2])
 
+	subject, err := ta.subjectService.GetByName(input.SubjectName)
 	if err != nil {
 		return "", err
 	}
+
 	user, err := ta.telegramUserService.Get(update.Message.From.ID)
 
 	if err != nil {
@@ -119,7 +127,7 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 		}
 	}
 
-	cmd := application.CreateReservation{UserId: user.Id, SubjectId: subject.Id, From: ta.clock.Current(), To: ta.clock.Current().Add(time.Duration(minutes)*time.Minute)}
+	cmd := application.CreateReservation{UserId: user.Id, SubjectId: subject.Id, From: ta.clock.Current(), To: ta.clock.Current().Add(time.Duration(input.Duration)*time.Minute)}
 	r, err := ta.reservationsService.Create(cmd)
 
 	if err != nil {
@@ -136,8 +144,11 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 
 func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling remove reservation command")
-	args := strings.SplitN(update.Message.Text, " ", 2)
-	subject, err := ta.subjectService.GetByName(args[1])
+	input, err := ParseRemoveReservation(update)
+	if err != nil {
+		return err.Error(), nil
+	}
+	subject, err := ta.subjectService.GetByName(input.SubjectName)
 	if err != nil {
 		return "", err
 	}
@@ -159,12 +170,11 @@ func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.
 
 func (ta *telegramAdapter) ActiveReservationsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
 	ta.log.Println("Handling active reservations command")
-	var tags []string
-	args := strings.SplitN(update.Message.Text, " ", 2)
-	if len(args) == 2 {
-		tags = strings.Split(args[1], " ")
+	input, err := ParseActiveReservations(update)
+	if err != nil {
+		return err.Error(), nil
 	}
-	list, err := ta.reservationsService.ActiveReservations(ta.clock.Current(), tags...)
+	list, err := ta.reservationsService.ActiveReservations(ta.clock.Current(), input.Tags...)
 
 	if err != nil {
 		return "", err
