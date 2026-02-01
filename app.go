@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/system"
@@ -22,6 +23,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pressly/goose/v3"
+	_ "time/tzdata"
 )
 
 const (
@@ -63,6 +65,7 @@ type Config struct {
 		User string `envconfig:"MYSQL_USER"`
 		Password string `envconfig:"MYSQL_PASSWORD"`
 	}
+	TimeZone string `envconfig:"TZ"`
 }
 
 func (app *App) Resolve(dependency string) any {
@@ -263,6 +266,8 @@ func (app *App) ConnectDB() *sql.DB{
 		cfg.Net = "tcp"
 		cfg.Addr = fmt.Sprintf("%s:%s", app.Config.MysqlConnection.Host, app.Config.MysqlConnection.Port)
 		cfg.DBName = app.Config.MysqlConnection.Database
+		cfg.Loc = time.Local
+		cfg.ParseTime = true
 
 		connectionString = cfg.FormatDSN()
 	}

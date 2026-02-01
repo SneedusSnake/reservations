@@ -159,7 +159,7 @@ func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.
 		return "", err
 	}
 
-	return subject.Name, nil
+	return fmt.Sprintf("Reservation for %s removed", subject.Name), nil
 }
 
 func (ta *telegramAdapter) ActiveReservationsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
