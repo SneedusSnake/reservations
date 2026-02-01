@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/system"
@@ -18,9 +19,9 @@ import (
 	mysqlDriver "github.com/go-sql-driver/mysql"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pressly/goose/v3"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 const (
@@ -151,6 +152,7 @@ func (app *App) registerStores() {
 
 	if app.Config.PersistenceDriver == "mysql" {
 		db := app.ConnectDB()
+		app.Migrate(db)
 
 		subjectsStore = mysql.NewSubjectsRepository(db)
 		usersStore = mysql.NewUsersRepository(db)
@@ -279,8 +281,12 @@ func (app *App) ConnectDB() *sql.DB{
 
 func (app *App) Migrate(db *sql.DB) {
 	goose.SetDialect("mysql")
+	wd, err := os.Getwd()
+	if err != nil {
+		app.Error(err)
+	}
 
-	err := goose.Up(db, "../migrations")
+	err = goose.Up(db, wd + "/migrations")
 	if err != nil {
 		app.Error(err)
 	}
