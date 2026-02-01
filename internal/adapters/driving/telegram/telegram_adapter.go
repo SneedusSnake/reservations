@@ -43,7 +43,6 @@ func NewAdapter(
 }
 
 func (ta *telegramAdapter) AddSubjectHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling add subject command")
 	input, err := ParseAddSubject(update)
 	if err != nil {
 		return err.Error(), nil
@@ -54,11 +53,10 @@ func (ta *telegramAdapter) AddSubjectHandler(ctx context.Context, b *bot.Bot, up
 		return "", err
 	}
 
-	return "", nil
+	return fmt.Sprintf("Subject %s added", input.Name), nil
 }
 
 func (ta *telegramAdapter) AddSubjectTagsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling add subject tags command")
 	input, err := ParseAddTags(update)
 	if err != nil {
 		return err.Error(), nil
@@ -74,22 +72,20 @@ func (ta *telegramAdapter) AddSubjectTagsHandler(ctx context.Context, b *bot.Bot
 		return "", err
 	}
 
-	return "", nil
+	return fmt.Sprintf("tags: %s added to %s", strings.Join(input.Tags, ", "), input.SubjectName), nil
 }
 
 func (ta *telegramAdapter) ListSubjectsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling list command")
 	subjects, err := ta.subjectService.List()
 
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return subjects.Names(), nil;
 }
 
 func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling list subject tags command")
 	input, err := ParseListTags(update)
 	if err != nil {
 		return err.Error(), nil
@@ -107,7 +103,6 @@ func (ta *telegramAdapter) ListSubjectTagsHandler(ctx context.Context, b *bot.Bo
 }
 
 func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling create reservation command")
 	input, err := ParseCreateReservation(update)
 	if err != nil {
 		return err.Error(), nil
@@ -143,7 +138,6 @@ func (ta *telegramAdapter) CreateReservationHandler(ctx context.Context, b *bot.
 }
 
 func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling remove reservation command")
 	input, err := ParseRemoveReservation(update)
 	if err != nil {
 		return err.Error(), nil
@@ -169,7 +163,6 @@ func (ta *telegramAdapter) RemoveReservationHandler(ctx context.Context, b *bot.
 }
 
 func (ta *telegramAdapter) ActiveReservationsHandler(ctx context.Context, b *bot.Bot, update *models.Update) (string, error) {
-	ta.log.Println("Handling active reservations command")
 	input, err := ParseActiveReservations(update)
 	if err != nil {
 		return err.Error(), nil

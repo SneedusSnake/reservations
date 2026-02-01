@@ -8,6 +8,7 @@ require (
 	github.com/alecthomas/assert/v2 v2.11.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/go-telegram/bot v1.17.0
+	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/testcontainers/testcontainers-go v0.40.0

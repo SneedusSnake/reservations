@@ -8,6 +8,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o main cmd/telegram_app/main.go
+RUN go build -o bin/telegram cmd/telegram_app/main.go
 
-CMD [ "./main" ]
+CMD [ "./bin/telegram" ]

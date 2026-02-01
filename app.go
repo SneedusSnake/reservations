@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 
 	"github.com/SneedusSnake/Reservations/internal/adapters/driven/clock/cache"
@@ -14,10 +15,12 @@ import (
 	"github.com/SneedusSnake/Reservations/internal/ports"
 	"github.com/SneedusSnake/Reservations/internal/ports/reservations"
 	"github.com/SneedusSnake/Reservations/internal/ports/users"
-	_ "github.com/go-sql-driver/mysql"
+	mysqlDriver "github.com/go-sql-driver/mysql"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/pressly/goose/v3"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 const (
@@ -51,7 +54,14 @@ type Config struct {
 	Clock string `envconfig:"CLOCK_DRIVER"`
 	CacheClockPath string `envconfig:"CACHE_CLOCK_PATH"`
 	PersistenceDriver string `envconfig:"PERSISTENCE_DRIVER"`
-	MySqlConnectionString string `envconfig:"MYSQL_CONNECTION"`
+	MysqlConnection struct {
+		ConnectionString string `envconfig:"MYSQL_CONNECTION"`
+		Host string `envconfig:"MYSQL_HOST"`
+		Port string `envconfig:"MYSQL_PORT"`
+		Database string `envconfig:"MYSQL_DATABASE"`
+		User string `envconfig:"MYSQL_USER"`
+		Password string `envconfig:"MYSQL_PASSWORD"`
+	}
 }
 
 func (app *App) Resolve(dependency string) any {
@@ -140,14 +150,7 @@ func (app *App) registerStores() {
 	)
 
 	if app.Config.PersistenceDriver == "mysql" {
-		db, err := sql.Open("mysql", app.Config.MySqlConnectionString)
-		if err != nil {
-			app.Error(err)
-		}
-		err = db.Ping()
-		if err != nil {
-			app.Error(err)
-		}
+		db := app.ConnectDB()
 
 		subjectsStore = mysql.NewSubjectsRepository(db)
 		usersStore = mysql.NewUsersRepository(db)
@@ -188,9 +191,12 @@ func (app *App) registerServices() {
 }
 
 func (app *App) telegramBot() *bot.Bot {
-	opts := []bot.Option{
-		bot.WithServerURL(app.Config.TelegramApi.Host),
+	var opts []bot.Option
+	url := app.Config.TelegramApi.Host
+	if url != "" {
+		opts = append(opts, bot.WithServerURL(app.Config.TelegramApi.Host))
 	}
+
 	b, err := bot.New(app.Config.TelegramApi.Token, opts...)
 
 	if err != nil {
@@ -228,7 +234,7 @@ func botHandlerFunc(h UpdateHandler) bot.HandlerFunc {
 
 		if err != nil {
 			log.Print(err)
-			return
+			text = "An error occured"
 		}
 
 		if text != "" {
@@ -243,4 +249,39 @@ func botHandlerFunc(h UpdateHandler) bot.HandlerFunc {
 
 func (app *App) Error(err error) {
 	app.Log.Fatal(err)
+}
+
+func (app *App) ConnectDB() *sql.DB{
+	connectionString := app.Config.MysqlConnection.ConnectionString
+
+	if  connectionString == "" {
+		cfg := mysqlDriver.NewConfig()
+		cfg.User = app.Config.MysqlConnection.User
+		cfg.Passwd = app.Config.MysqlConnection.Password
+		cfg.Net = "tcp"
+		cfg.Addr = fmt.Sprintf("%s:%s", app.Config.MysqlConnection.Host, app.Config.MysqlConnection.Port)
+		cfg.DBName = app.Config.MysqlConnection.Database
+
+		connectionString = cfg.FormatDSN()
+	}
+
+	db, err := sql.Open("mysql", connectionString)
+	if err != nil {
+		app.Error(err)
+	}
+	err = db.Ping()
+	if err != nil {
+		app.Error(err)
+	}
+
+	return db
+}
+
+func (app *App) Migrate(db *sql.DB) {
+	goose.SetDialect("mysql")
+
+	err := goose.Up(db, "../migrations")
+	if err != nil {
+		app.Error(err)
+	}
 }
